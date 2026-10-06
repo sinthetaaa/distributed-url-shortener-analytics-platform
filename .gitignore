@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Go build and test artifacts
+bin/
+dist/
+coverage.out
+*.test
+*.prof
+
+# Logs
+*.log
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/
