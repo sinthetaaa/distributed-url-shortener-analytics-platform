@@ -88,6 +88,22 @@ services:
       postgres:
         condition: service_healthy
 
+  analytics-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile.analytics-consumer
+    environment:
+      DATABASE_URL: "postgres://shortscale:shortscale@postgres:5432/shortscale?sslmode=disable"
+      KAFKA_BROKERS: "kafka:19092"
+      ANALYTICS_METRICS_ADDR: ":9091"
+    ports:
+      - "19091:9091"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
   nginx:
     image: nginx:1.31.6-alpine
     ports:

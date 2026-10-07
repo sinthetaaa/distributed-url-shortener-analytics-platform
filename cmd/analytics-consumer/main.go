@@ -2,19 +2,27 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	analytics "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/analytics"
 	database "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/database/generated"
+	"github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/observability"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const analyticsDatabaseStartupTimeout = 5 * time.Second
+const (
+	analyticsDatabaseStartupTimeout = 5 * time.Second
+	analyticsMetricsShutdownTimeout = 2 * time.Second
+	defaultAnalyticsMetricsAddr     = ":9091"
+)
 
 func main() {
 	os.Exit(run())
@@ -24,6 +32,15 @@ func run() int {
 	logger := slog.New(
 		slog.NewJSONHandler(os.Stdout, nil),
 	)
+
+	metrics, err := observability.NewConsumerMetrics()
+	if err != nil {
+		logger.Error(
+			"failed to initialize analytics consumer metrics",
+			"error", err,
+		)
+		return 1
+	}
 
 	config, err := analytics.KafkaConsumerConfigFromEnv()
 	if err != nil {
@@ -38,6 +55,13 @@ func run() int {
 	if databaseURL == "" {
 		logger.Error("DATABASE_URL is required")
 		return 1
+	}
+
+	metricsAddr := strings.TrimSpace(
+		os.Getenv("ANALYTICS_METRICS_ADDR"),
+	)
+	if metricsAddr == "" {
+		metricsAddr = defaultAnalyticsMetricsAddr
 	}
 
 	databaseCtx, databaseCancel := context.WithTimeout(
@@ -68,8 +92,9 @@ func run() int {
 
 	queries := database.New(pool)
 
-	processor, err := analytics.NewPostgresRedirectEventProcessor(
+	processor, err := analytics.NewPostgresRedirectEventProcessorWithMetrics(
 		queries,
+		metrics,
 	)
 	if err != nil {
 		logger.Error(
@@ -79,7 +104,10 @@ func run() int {
 		return 1
 	}
 
-	consumer, err := analytics.NewKafkaRedirectEventConsumer(config)
+	consumer, err := analytics.NewKafkaRedirectEventConsumerWithMetrics(
+		config,
+		metrics,
+	)
 	if err != nil {
 		logger.Error(
 			"failed to create analytics consumer",
@@ -96,6 +124,26 @@ func run() int {
 	)
 	defer stop()
 
+	metricsServer := &http.Server{
+		Addr:              metricsAddr,
+		Handler:           metrics.Handler(),
+		ReadHeaderTimeout: 2 * time.Second,
+	}
+
+	metricsErrors := make(chan error, 1)
+
+	go func() {
+		logger.Info(
+			"starting analytics consumer metrics server",
+			"addr", metricsAddr,
+		)
+
+		if err := metricsServer.ListenAndServe(); err != nil &&
+			!errors.Is(err, http.ErrServerClosed) {
+			metricsErrors <- err
+		}
+	}()
+
 	logger.Info(
 		"starting ShortScale analytics consumer",
 		"brokers", config.Brokers,
@@ -105,15 +153,66 @@ func run() int {
 		"reset_offset", config.ResetOffset,
 	)
 
-	if err := consumer.Run(ctx, processor); err != nil {
+	consumerErrors := make(chan error, 1)
+
+	go func() {
+		consumerErrors <- consumer.Run(ctx, processor)
+	}()
+
+	exitCode := 0
+
+	select {
+	case err := <-consumerErrors:
+		if err != nil {
+			logger.Error(
+				"analytics consumer stopped with error",
+				"error", err,
+			)
+			exitCode = 1
+		} else {
+			logger.Info("ShortScale analytics consumer stopped")
+		}
+
+	case err := <-metricsErrors:
 		logger.Error(
-			"analytics consumer stopped with error",
+			"analytics consumer metrics server stopped with error",
 			"error", err,
 		)
-		return 1
+		exitCode = 1
+		stop()
+
+		if consumerErr := <-consumerErrors; consumerErr != nil {
+			logger.Error(
+				"analytics consumer stopped with error",
+				"error", consumerErr,
+			)
+		}
+
+	case <-ctx.Done():
+		if err := <-consumerErrors; err != nil {
+			logger.Error(
+				"analytics consumer stopped with error",
+				"error", err,
+			)
+			exitCode = 1
+		} else {
+			logger.Info("ShortScale analytics consumer stopped")
+		}
 	}
 
-	logger.Info("ShortScale analytics consumer stopped")
+	shutdownCtx, shutdownCancel := context.WithTimeout(
+		context.Background(),
+		analyticsMetricsShutdownTimeout,
+	)
+	defer shutdownCancel()
 
-	return 0
+	if err := metricsServer.Shutdown(shutdownCtx); err != nil {
+		logger.Error(
+			"failed to shut down analytics consumer metrics server",
+			"error", err,
+		)
+		exitCode = 1
+	}
+
+	return exitCode
 }

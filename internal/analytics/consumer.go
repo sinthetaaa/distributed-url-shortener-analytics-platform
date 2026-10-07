@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/observability"
+
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -16,6 +18,11 @@ const (
 
 	kafkaConsumerResetEarliest = "earliest"
 	kafkaConsumerResetLatest   = "latest"
+
+	consumerFailureStagePoll    = "poll"
+	consumerFailureStageDecode  = "decode"
+	consumerFailureStageProcess = "process"
+	consumerFailureStageCommit  = "commit"
 )
 
 type RedirectEventProcessor interface {
@@ -122,11 +129,22 @@ func validateKafkaConsumerConfig(
 }
 
 type KafkaRedirectEventConsumer struct {
-	client *kgo.Client
+	client  *kgo.Client
+	metrics *observability.ConsumerMetrics
 }
 
 func NewKafkaRedirectEventConsumer(
 	config KafkaConsumerConfig,
+) (*KafkaRedirectEventConsumer, error) {
+	return NewKafkaRedirectEventConsumerWithMetrics(
+		config,
+		nil,
+	)
+}
+
+func NewKafkaRedirectEventConsumerWithMetrics(
+	config KafkaConsumerConfig,
+	metrics *observability.ConsumerMetrics,
 ) (*KafkaRedirectEventConsumer, error) {
 	config, err := validateKafkaConsumerConfig(config)
 	if err != nil {
@@ -151,7 +169,8 @@ func NewKafkaRedirectEventConsumer(
 	}
 
 	return &KafkaRedirectEventConsumer{
-		client: client,
+		client:  client,
+		metrics: metrics,
 	}, nil
 }
 
@@ -171,6 +190,8 @@ func (c *KafkaRedirectEventConsumer) Run(
 		}
 
 		if errs := fetches.Errors(); len(errs) > 0 {
+			c.recordFailure(consumerFailureStagePoll)
+
 			return fmt.Errorf("poll Kafka redirect events: %v", errs)
 		}
 
@@ -183,6 +204,8 @@ func (c *KafkaRedirectEventConsumer) Run(
 
 		event, err := redirectEventFromKafkaRecord(record)
 		if err != nil {
+			c.recordFailure(consumerFailureStageDecode)
+
 			return fmt.Errorf(
 				"decode Kafka redirect event: %w",
 				err,
@@ -190,6 +213,8 @@ func (c *KafkaRedirectEventConsumer) Run(
 		}
 
 		if err := processor.Process(ctx, event); err != nil {
+			c.recordFailure(consumerFailureStageProcess)
+
 			return fmt.Errorf(
 				"process redirect event %q: %w",
 				event.EventID,
@@ -202,17 +227,39 @@ func (c *KafkaRedirectEventConsumer) Run(
 				return nil
 			}
 
+			c.recordFailure(consumerFailureStageCommit)
+
 			return fmt.Errorf(
 				"commit redirect event %q: %w",
 				event.EventID,
 				err,
 			)
 		}
+
+		c.recordProcessed()
 	}
 }
 
 func (c *KafkaRedirectEventConsumer) Close() {
 	c.client.Close()
+}
+
+func (c *KafkaRedirectEventConsumer) recordFailure(stage string) {
+	if c.metrics == nil {
+		return
+	}
+
+	c.metrics.FailuresTotal.
+		WithLabelValues(stage).
+		Inc()
+}
+
+func (c *KafkaRedirectEventConsumer) recordProcessed() {
+	if c.metrics == nil {
+		return
+	}
+
+	c.metrics.ProcessedTotal.Inc()
 }
 
 func redirectEventFromKafkaRecord(

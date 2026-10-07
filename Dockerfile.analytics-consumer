@@ -1,0 +1,26 @@
+FROM golang:1.27.1-alpine AS builder
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux \
+    go build \
+    -trimpath \
+    -ldflags="-s -w" \
+    -o /out/shortscale-analytics-consumer \
+    ./cmd/analytics-consumer
+
+FROM scratch
+
+COPY --from=builder /out/shortscale-analytics-consumer /shortscale-analytics-consumer
+
+USER 65532:65532
+
+EXPOSE 9091
+
+ENTRYPOINT ["/shortscale-analytics-consumer"]
