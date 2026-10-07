@@ -9,6 +9,9 @@ import (
 
 	"github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/observability"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -200,44 +203,95 @@ func (c *KafkaRedirectEventConsumer) Run(
 			continue
 		}
 
-		record := records[0]
-
-		event, err := redirectEventFromKafkaRecord(record)
+		stage, err := c.processRecord(
+			ctx,
+			processor,
+			records[0],
+		)
 		if err != nil {
-			c.recordFailure(consumerFailureStageDecode)
-
-			return fmt.Errorf(
-				"decode Kafka redirect event: %w",
-				err,
-			)
-		}
-
-		if err := processor.Process(ctx, event); err != nil {
-			c.recordFailure(consumerFailureStageProcess)
-
-			return fmt.Errorf(
-				"process redirect event %q: %w",
-				event.EventID,
-				err,
-			)
-		}
-
-		if err := c.client.CommitRecords(ctx, record); err != nil {
 			if ctx.Err() != nil {
 				return nil
 			}
 
-			c.recordFailure(consumerFailureStageCommit)
-
-			return fmt.Errorf(
-				"commit redirect event %q: %w",
-				event.EventID,
-				err,
-			)
+			c.recordFailure(stage)
+			return err
 		}
 
 		c.recordProcessed()
 	}
+}
+
+func (c *KafkaRedirectEventConsumer) processRecord(
+	ctx context.Context,
+	processor RedirectEventProcessor,
+	record *kgo.Record,
+) (string, error) {
+	processCtx := extractKafkaTraceContext(ctx, record)
+
+	spanOptions := []trace.SpanStartOption{
+		trace.WithSpanKind(trace.SpanKindConsumer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "kafka"),
+		),
+	}
+
+	if record != nil && strings.TrimSpace(record.Topic) != "" {
+		spanOptions = append(
+			spanOptions,
+			trace.WithAttributes(
+				attribute.String(
+					"messaging.destination.name",
+					record.Topic,
+				),
+			),
+		)
+	}
+
+	processCtx, span := analyticsTracer().Start(
+		processCtx,
+		"redirect.analytics.process",
+		spanOptions...,
+	)
+	defer span.End()
+
+	event, err := redirectEventFromKafkaRecord(record)
+	if err != nil {
+		err = fmt.Errorf(
+			"decode Kafka redirect event: %w",
+			err,
+		)
+		markSpanError(span, err, "decode Kafka record")
+
+		return consumerFailureStageDecode, err
+	}
+
+	if err := processor.Process(processCtx, event); err != nil {
+		err = fmt.Errorf(
+			"process redirect event %q: %w",
+			event.EventID,
+			err,
+		)
+		markSpanError(span, err, "process redirect event")
+
+		return consumerFailureStageProcess, err
+	}
+
+	if err := c.client.CommitRecords(processCtx, record); err != nil {
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+
+		err = fmt.Errorf(
+			"commit redirect event %q: %w",
+			event.EventID,
+			err,
+		)
+		markSpanError(span, err, "commit Kafka record")
+
+		return consumerFailureStageCommit, err
+	}
+
+	return "", nil
 }
 
 func (c *KafkaRedirectEventConsumer) Close() {

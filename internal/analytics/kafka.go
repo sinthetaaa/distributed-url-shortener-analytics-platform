@@ -7,6 +7,9 @@ import (
 	"os"
 	"strings"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -122,13 +125,32 @@ func (p *KafkaRedirectEventProducer) Publish(
 	ctx context.Context,
 	event RedirectEvent,
 ) error {
+	publishCtx, span := analyticsTracer().Start(
+		ctx,
+		"redirect.analytics.publish",
+		trace.WithSpanKind(trace.SpanKindProducer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "kafka"),
+			attribute.String(
+				"messaging.destination.name",
+				p.topic,
+			),
+		),
+	)
+	defer span.End()
+
 	record, err := kafkaRecordForRedirectEvent(p.topic, event)
 	if err != nil {
+		markSpanError(span, err, "build Kafka record")
 		return err
 	}
 
-	if err := p.client.ProduceSync(ctx, record).FirstErr(); err != nil {
-		return fmt.Errorf("produce redirect event: %w", err)
+	injectKafkaTraceContext(publishCtx, record)
+
+	if err := p.client.ProduceSync(publishCtx, record).FirstErr(); err != nil {
+		err = fmt.Errorf("produce redirect event: %w", err)
+		markSpanError(span, err, "publish Kafka record")
+		return err
 	}
 
 	return nil

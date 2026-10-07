@@ -10,6 +10,11 @@ import (
 
 	analytics "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/analytics"
 	"github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/observability"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/baggage"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -22,12 +27,19 @@ const (
 
 	redirectAnalyticsPublishResultSuccess = "success"
 	redirectAnalyticsPublishResultFailure = "failure"
+
+	apiTracerName = "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/cmd/api"
 )
+
+type queuedRedirectEvent struct {
+	ctx   context.Context
+	event analytics.RedirectEvent
+}
 
 type asyncRedirectEventRecorder struct {
 	logger         *slog.Logger
 	publisher      analytics.RedirectEventPublisher
-	queue          chan analytics.RedirectEvent
+	queue          chan queuedRedirectEvent
 	publishTimeout time.Duration
 	metrics        *observability.Metrics
 
@@ -81,7 +93,7 @@ func newAsyncRedirectEventRecorderWithMetrics(
 	recorder := &asyncRedirectEventRecorder{
 		logger:         logger,
 		publisher:      publisher,
-		queue:          make(chan analytics.RedirectEvent, queueCapacity),
+		queue:          make(chan queuedRedirectEvent, queueCapacity),
 		publishTimeout: publishTimeout,
 		metrics:        metrics,
 		cancel:         cancel,
@@ -155,24 +167,60 @@ func newProductionRedirectEventRecorderWithMetrics(
 }
 
 func (r *asyncRedirectEventRecorder) Record(event analytics.RedirectEvent) {
+	r.RecordContext(context.Background(), event)
+}
+
+func (r *asyncRedirectEventRecorder) RecordContext(
+	ctx context.Context,
+	event analytics.RedirectEvent,
+) {
+	enqueueCtx, span := otel.Tracer(apiTracerName).Start(
+		ctx,
+		"redirect.analytics.enqueue",
+	)
+	defer span.End()
+
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	if r.closed {
+		span.SetAttributes(
+			attribute.String(
+				"shortscale.analytics.enqueue.result",
+				redirectAnalyticsEnqueueResultDropped,
+			),
+		)
 		return
+	}
+
+	queued := queuedRedirectEvent{
+		ctx:   detachRedirectAnalyticsTraceContext(enqueueCtx),
+		event: event,
 	}
 
 	r.incrementQueueDepth()
 
 	select {
-	case r.queue <- event:
+	case r.queue <- queued:
 		r.recordEnqueue(redirectAnalyticsEnqueueResultEnqueued)
+		span.SetAttributes(
+			attribute.String(
+				"shortscale.analytics.enqueue.result",
+				redirectAnalyticsEnqueueResultEnqueued,
+			),
+		)
 
 	default:
 		r.decrementQueueDepth()
 		r.recordEnqueue(redirectAnalyticsEnqueueResultDropped)
 		r.droppedTotal.Add(1)
 		r.droppedSinceLog.Add(1)
+		span.SetAttributes(
+			attribute.String(
+				"shortscale.analytics.enqueue.result",
+				redirectAnalyticsEnqueueResultDropped,
+			),
+		)
 	}
 }
 
@@ -212,7 +260,7 @@ func (r *asyncRedirectEventRecorder) run(ctx context.Context) {
 		case <-ticker.C:
 			r.logDroppedEvents()
 
-		case event, ok := <-r.queue:
+		case queued, ok := <-r.queue:
 			if !ok {
 				r.logDroppedEvents()
 				return
@@ -220,12 +268,17 @@ func (r *asyncRedirectEventRecorder) run(ctx context.Context) {
 
 			r.decrementQueueDepth()
 
-			publishCtx, cancel := context.WithTimeout(
+			publishBaseCtx := attachRedirectAnalyticsTraceContext(
 				ctx,
+				queued.ctx,
+			)
+
+			publishCtx, cancel := context.WithTimeout(
+				publishBaseCtx,
 				r.publishTimeout,
 			)
 
-			err := r.publisher.Publish(publishCtx, event)
+			err := r.publisher.Publish(publishCtx, queued.event)
 			cancel()
 
 			if err != nil {
@@ -235,8 +288,8 @@ func (r *asyncRedirectEventRecorder) run(ctx context.Context) {
 
 				r.logger.Warn(
 					"failed to publish redirect analytics event",
-					"event_id", event.EventID,
-					"short_code", event.ShortCode,
+					"event_id", queued.event.EventID,
+					"short_code", queued.event.ShortCode,
 					"error", err,
 				)
 
@@ -248,6 +301,49 @@ func (r *asyncRedirectEventRecorder) run(ctx context.Context) {
 			)
 		}
 	}
+}
+
+func detachRedirectAnalyticsTraceContext(
+	ctx context.Context,
+) context.Context {
+	detached := context.Background()
+
+	if spanContext := trace.SpanContextFromContext(ctx); spanContext.IsValid() {
+		detached = trace.ContextWithSpanContext(
+			detached,
+			spanContext,
+		)
+	}
+
+	if currentBaggage := baggage.FromContext(ctx); currentBaggage.Len() > 0 {
+		detached = baggage.ContextWithBaggage(
+			detached,
+			currentBaggage,
+		)
+	}
+
+	return detached
+}
+
+func attachRedirectAnalyticsTraceContext(
+	base context.Context,
+	traceCtx context.Context,
+) context.Context {
+	if spanContext := trace.SpanContextFromContext(traceCtx); spanContext.IsValid() {
+		base = trace.ContextWithSpanContext(
+			base,
+			spanContext,
+		)
+	}
+
+	if currentBaggage := baggage.FromContext(traceCtx); currentBaggage.Len() > 0 {
+		base = baggage.ContextWithBaggage(
+			base,
+			currentBaggage,
+		)
+	}
+
+	return base
 }
 
 func (r *asyncRedirectEventRecorder) incrementQueueDepth() {

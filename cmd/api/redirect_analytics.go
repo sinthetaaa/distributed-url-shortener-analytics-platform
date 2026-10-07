@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 
 	analytics "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/analytics"
@@ -13,11 +14,16 @@ type redirectEventRecorder interface {
 	Record(analytics.RedirectEvent)
 }
 
+type contextualRedirectEventRecorder interface {
+	RecordContext(context.Context, analytics.RedirectEvent)
+}
+
 type noopRedirectEventRecorder struct{}
 
 func (noopRedirectEventRecorder) Record(analytics.RedirectEvent) {}
 
 func recordRedirectEvent(
+	ctx context.Context,
 	logger *slog.Logger,
 	recorder redirectEventRecorder,
 	shortCode string,
@@ -29,6 +35,11 @@ func recordRedirectEvent(
 			"short_code", shortCode,
 			"error", err,
 		)
+		return
+	}
+
+	if contextualRecorder, ok := recorder.(contextualRedirectEventRecorder); ok {
+		contextualRecorder.RecordContext(ctx, event)
 		return
 	}
 

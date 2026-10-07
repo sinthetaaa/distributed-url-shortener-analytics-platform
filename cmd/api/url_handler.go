@@ -123,7 +123,12 @@ func redirectURLHandlerWithEvents(
 		}
 
 		http.Redirect(w, r, found.OriginalUrl, http.StatusFound)
-		recordRedirectEvent(logger, recorder, shortCode)
+		recordRedirectEvent(
+			r.Context(),
+			logger,
+			recorder,
+			shortCode,
+		)
 	}
 }
 

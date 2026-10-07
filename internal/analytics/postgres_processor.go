@@ -9,6 +9,9 @@ import (
 	"github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/observability"
 
 	"github.com/jackc/pgx/v5/pgtype"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -58,27 +61,45 @@ func (p *PostgresRedirectEventProcessor) Process(
 	ctx context.Context,
 	event RedirectEvent,
 ) error {
+	ctx, span := analyticsTracer().Start(
+		ctx,
+		"redirect.analytics.persist",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			attribute.String("db.system.name", "postgresql"),
+		),
+	)
+	defer span.End()
+
 	if strings.TrimSpace(event.EventID) == "" {
-		return fmt.Errorf("redirect event id must not be empty")
+		err := fmt.Errorf("redirect event id must not be empty")
+		markSpanError(span, err, "validate redirect event")
+		return err
 	}
 
 	if event.EventType != RedirectEventType {
-		return fmt.Errorf(
+		err := fmt.Errorf(
 			"redirect event type must be %q",
 			RedirectEventType,
 		)
+		markSpanError(span, err, "validate redirect event")
+		return err
 	}
 
 	if strings.TrimSpace(event.ShortCode) == "" {
-		return fmt.Errorf(
+		err := fmt.Errorf(
 			"redirect event short code must not be empty",
 		)
+		markSpanError(span, err, "validate redirect event")
+		return err
 	}
 
 	if event.OccurredAt.IsZero() {
-		return fmt.Errorf(
+		err := fmt.Errorf(
 			"redirect event occurred_at must not be zero",
 		)
+		markSpanError(span, err, "validate redirect event")
+		return err
 	}
 
 	rowsAffected, err := p.store.InsertRedirectEvent(
@@ -95,31 +116,61 @@ func (p *PostgresRedirectEventProcessor) Process(
 	)
 	if err != nil {
 		p.recordPersistence(persistenceResultError)
+		span.SetAttributes(
+			attribute.String(
+				"shortscale.analytics.persistence.result",
+				persistenceResultError,
+			),
+		)
 
-		return fmt.Errorf(
+		err = fmt.Errorf(
 			"persist redirect event %q: %w",
 			event.EventID,
 			err,
 		)
+		markSpanError(span, err, "persist redirect event")
+
+		return err
 	}
 
 	switch rowsAffected {
 	case 0:
 		p.recordPersistence(persistenceResultDuplicate)
+		span.SetAttributes(
+			attribute.String(
+				"shortscale.analytics.persistence.result",
+				persistenceResultDuplicate,
+			),
+		)
 		return nil
 
 	case 1:
 		p.recordPersistence(persistenceResultInserted)
+		span.SetAttributes(
+			attribute.String(
+				"shortscale.analytics.persistence.result",
+				persistenceResultInserted,
+			),
+		)
 		return nil
 
 	default:
 		p.recordPersistence(persistenceResultError)
+		span.SetAttributes(
+			attribute.String(
+				"shortscale.analytics.persistence.result",
+				persistenceResultError,
+			),
+		)
 
-		return fmt.Errorf(
+		err := fmt.Errorf(
 			"persist redirect event %q affected %d rows",
 			event.EventID,
 			rowsAffected,
 		)
+		markSpanError(span, err, "persist redirect event")
+
+		return err
 	}
 }
 
