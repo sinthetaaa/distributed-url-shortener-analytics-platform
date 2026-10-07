@@ -252,3 +252,52 @@ func assertRedirectEventsEqual(
 		t.Fatalf("expected occurred_at %s, got %s", want.OccurredAt, got.OccurredAt)
 	}
 }
+
+func TestKafkaRedirectEventProducerAllowsBoundedIdempotentCancellation(
+	t *testing.T,
+) {
+	producer, err := NewKafkaRedirectEventProducer(
+		KafkaProducerConfig{
+			Brokers: []string{
+				"127.0.0.1:1",
+			},
+			Topic:    RedirectEventsTopic,
+			ClientID: "shortscale-cancellation-test",
+		},
+	)
+	if err != nil {
+		t.Fatalf(
+			"create Kafka redirect event producer: %v",
+			err,
+		)
+	}
+	t.Cleanup(producer.Close)
+
+	allowCancellation, ok := producer.client.
+		OptValue(kgo.AllowIdempotentProduceCancellation).(bool)
+	if !ok {
+		t.Fatal(
+			"expected AllowIdempotentProduceCancellation to expose a bool",
+		)
+	}
+
+	if !allowCancellation {
+		t.Fatal(
+			"expected idempotent produce cancellation to be enabled",
+		)
+	}
+
+	idempotencyDisabled, ok := producer.client.
+		OptValue(kgo.DisableIdempotentWrite).(bool)
+	if !ok {
+		t.Fatal(
+			"expected DisableIdempotentWrite to expose a bool",
+		)
+	}
+
+	if idempotencyDisabled {
+		t.Fatal(
+			"expected Kafka idempotent writes to remain enabled",
+		)
+	}
+}

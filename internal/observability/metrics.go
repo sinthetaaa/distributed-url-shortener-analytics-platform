@@ -18,6 +18,10 @@ type Metrics struct {
 
 	CacheOperationsTotal    *prometheus.CounterVec
 	RateLimitDecisionsTotal *prometheus.CounterVec
+
+	RedirectAnalyticsEnqueuesTotal  *prometheus.CounterVec
+	RedirectAnalyticsPublishesTotal *prometheus.CounterVec
+	RedirectAnalyticsQueueDepth     prometheus.Gauge
 }
 
 func NewMetrics() (*Metrics, error) {
@@ -100,6 +104,39 @@ func NewMetrics() (*Metrics, error) {
 				"result",
 			},
 		),
+
+		RedirectAnalyticsEnqueuesTotal: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace: namespace,
+				Subsystem: "redirect_analytics",
+				Name:      "enqueues_total",
+				Help:      "Total number of redirect analytics enqueue attempts by result.",
+			},
+			[]string{
+				"result",
+			},
+		),
+
+		RedirectAnalyticsPublishesTotal: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace: namespace,
+				Subsystem: "redirect_analytics",
+				Name:      "publishes_total",
+				Help:      "Total number of redirect analytics publish attempts by result.",
+			},
+			[]string{
+				"result",
+			},
+		),
+
+		RedirectAnalyticsQueueDepth: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: namespace,
+				Subsystem: "redirect_analytics",
+				Name:      "queue_depth",
+				Help:      "Current number of redirect analytics events waiting in the local queue.",
+			},
+		),
 	}
 
 	metricCollectors := []prometheus.Collector{
@@ -108,6 +145,9 @@ func NewMetrics() (*Metrics, error) {
 		metrics.HTTPRequestsInFlight,
 		metrics.CacheOperationsTotal,
 		metrics.RateLimitDecisionsTotal,
+		metrics.RedirectAnalyticsEnqueuesTotal,
+		metrics.RedirectAnalyticsPublishesTotal,
+		metrics.RedirectAnalyticsQueueDepth,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(
 			collectors.ProcessCollectorOpts{},

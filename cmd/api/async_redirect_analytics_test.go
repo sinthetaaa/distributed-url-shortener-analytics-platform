@@ -11,6 +11,9 @@ import (
 	"time"
 
 	analytics "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/analytics"
+	"github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/observability"
+
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 type testRedirectEventPublisher struct {
@@ -203,5 +206,166 @@ func TestAsyncRedirectEventRecorderContainsPublisherFailures(t *testing.T) {
 
 	if !publisher.closed.Load() {
 		t.Fatal("expected failing publisher to be closed")
+	}
+}
+
+func TestAsyncRedirectEventRecorderRecordsQueueAndPublishMetrics(
+	t *testing.T,
+) {
+	metrics, err := observability.NewMetrics()
+	if err != nil {
+		t.Fatalf("create metrics: %v", err)
+	}
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+
+	publisher := &testRedirectEventPublisher{
+		started: started,
+		release: release,
+	}
+
+	recorder, err := newAsyncRedirectEventRecorderWithMetrics(
+		newDiscardLogger(),
+		publisher,
+		1,
+		5*time.Second,
+		metrics,
+	)
+	if err != nil {
+		t.Fatalf("create async recorder: %v", err)
+	}
+
+	recorder.Record(testAnalyticsEvent(t, "metric-one"))
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("publisher did not start processing first event")
+	}
+
+	recorder.Record(testAnalyticsEvent(t, "metric-two"))
+	recorder.Record(testAnalyticsEvent(t, "metric-three"))
+
+	enqueued := testutil.ToFloat64(
+		metrics.RedirectAnalyticsEnqueuesTotal.
+			WithLabelValues(
+				redirectAnalyticsEnqueueResultEnqueued,
+			),
+	)
+	if enqueued != 2 {
+		t.Fatalf("expected 2 enqueued events, got %v", enqueued)
+	}
+
+	dropped := testutil.ToFloat64(
+		metrics.RedirectAnalyticsEnqueuesTotal.
+			WithLabelValues(
+				redirectAnalyticsEnqueueResultDropped,
+			),
+	)
+	if dropped != 1 {
+		t.Fatalf("expected 1 dropped event, got %v", dropped)
+	}
+
+	queueDepth := testutil.ToFloat64(
+		metrics.RedirectAnalyticsQueueDepth,
+	)
+	if queueDepth != 1 {
+		t.Fatalf(
+			"expected queue depth 1 while publisher blocked, got %v",
+			queueDepth,
+		)
+	}
+
+	close(release)
+
+	closeCtx, cancel := context.WithTimeout(
+		context.Background(),
+		time.Second,
+	)
+	defer cancel()
+
+	recorder.Close(closeCtx)
+
+	published := testutil.ToFloat64(
+		metrics.RedirectAnalyticsPublishesTotal.
+			WithLabelValues(
+				redirectAnalyticsPublishResultSuccess,
+			),
+	)
+	if published != 2 {
+		t.Fatalf(
+			"expected 2 successful publishes, got %v",
+			published,
+		)
+	}
+
+	queueDepth = testutil.ToFloat64(
+		metrics.RedirectAnalyticsQueueDepth,
+	)
+	if queueDepth != 0 {
+		t.Fatalf(
+			"expected queue depth 0 after drain, got %v",
+			queueDepth,
+		)
+	}
+}
+
+func TestAsyncRedirectEventRecorderRecordsPublishFailureMetric(
+	t *testing.T,
+) {
+	metrics, err := observability.NewMetrics()
+	if err != nil {
+		t.Fatalf("create metrics: %v", err)
+	}
+
+	publisher := &testRedirectEventPublisher{
+		err: errors.New("Kafka unavailable"),
+	}
+
+	recorder, err := newAsyncRedirectEventRecorderWithMetrics(
+		newDiscardLogger(),
+		publisher,
+		2,
+		100*time.Millisecond,
+		metrics,
+	)
+	if err != nil {
+		t.Fatalf("create async recorder: %v", err)
+	}
+
+	recorder.Record(
+		testAnalyticsEvent(t, "metric-publish-failure"),
+	)
+
+	closeCtx, cancel := context.WithTimeout(
+		context.Background(),
+		time.Second,
+	)
+	defer cancel()
+
+	recorder.Close(closeCtx)
+
+	failures := testutil.ToFloat64(
+		metrics.RedirectAnalyticsPublishesTotal.
+			WithLabelValues(
+				redirectAnalyticsPublishResultFailure,
+			),
+	)
+	if failures != 1 {
+		t.Fatalf(
+			"expected 1 publish failure, got %v",
+			failures,
+		)
+	}
+
+	queueDepth := testutil.ToFloat64(
+		metrics.RedirectAnalyticsQueueDepth,
+	)
+	if queueDepth != 0 {
+		t.Fatalf(
+			"expected queue depth 0 after failed publish, got %v",
+			queueDepth,
+		)
 	}
 }

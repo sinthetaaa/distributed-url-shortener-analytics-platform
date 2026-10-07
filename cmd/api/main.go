@@ -95,7 +95,10 @@ func main() {
 		logger.Info("redis connection established")
 	}
 
-	redirectRecorder, closeRedirectAnalytics := newProductionRedirectEventRecorder(logger)
+	redirectRecorder, closeRedirectAnalytics := newProductionRedirectEventRecorderWithMetrics(
+		logger,
+		metrics,
+	)
 
 	addr := ":" + cfg.Port
 

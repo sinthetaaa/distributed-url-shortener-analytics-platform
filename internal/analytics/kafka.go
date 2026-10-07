@@ -105,6 +105,7 @@ func NewKafkaRedirectEventProducer(
 		kgo.SeedBrokers(config.Brokers...),
 		kgo.ClientID(config.ClientID),
 		kgo.DefaultProduceTopic(config.Topic),
+		kgo.AllowIdempotentProduceCancellation(),
 		kgo.RecordPartitioner(kgo.StickyKeyPartitioner(nil)),
 	)
 	if err != nil {
