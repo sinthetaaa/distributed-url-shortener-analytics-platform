@@ -23,6 +23,7 @@ import (
 const (
 	urlCacheTTL                      = time.Hour
 	redirectAnalyticsShutdownTimeout = 2 * time.Second
+	tracingShutdownTimeout           = 5 * time.Second
 )
 
 type config struct {
@@ -37,6 +38,24 @@ type databasePinger interface {
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	tracing, tracingErr := observability.NewTracing(
+		context.Background(),
+		"shortscale-api",
+	)
+	if tracingErr != nil {
+		logger.Warn(
+			"failed to initialize OpenTelemetry tracing; continuing without tracing",
+			"error",
+			tracingErr,
+		)
+	} else if tracing.Enabled() {
+		logger.Info(
+			"OpenTelemetry tracing enabled",
+			"service",
+			"shortscale-api",
+		)
+	}
 
 	metrics, err := observability.NewMetrics()
 	if err != nil {
@@ -128,9 +147,11 @@ func main() {
 		metrics,
 	)
 
+	tracedHandler := newTracedHTTPHandler(router)
+
 	server := &http.Server{
 		Addr:    addr,
-		Handler: router,
+		Handler: tracedHandler,
 	}
 
 	serverErrors := make(chan error, 1)
@@ -172,6 +193,20 @@ func main() {
 	defer analyticsShutdownCancel()
 
 	closeRedirectAnalytics(analyticsShutdownCtx)
+
+	tracingShutdownCtx, tracingShutdownCancel := context.WithTimeout(
+		context.Background(),
+		tracingShutdownTimeout,
+	)
+	defer tracingShutdownCancel()
+
+	if err := tracing.Shutdown(tracingShutdownCtx); err != nil {
+		logger.Warn(
+			"failed to flush OpenTelemetry traces",
+			"error",
+			err,
+		)
+	}
 
 	logger.Info("ShortScale API stopped")
 }

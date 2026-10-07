@@ -22,6 +22,7 @@ const (
 	analyticsDatabaseStartupTimeout = 5 * time.Second
 	analyticsMetricsShutdownTimeout = 2 * time.Second
 	defaultAnalyticsMetricsAddr     = ":9091"
+	tracingShutdownTimeout          = 5 * time.Second
 )
 
 func main() {
@@ -32,6 +33,24 @@ func run() int {
 	logger := slog.New(
 		slog.NewJSONHandler(os.Stdout, nil),
 	)
+
+	tracing, tracingErr := observability.NewTracing(
+		context.Background(),
+		"shortscale-analytics-consumer",
+	)
+	if tracingErr != nil {
+		logger.Warn(
+			"failed to initialize OpenTelemetry tracing; continuing without tracing",
+			"error",
+			tracingErr,
+		)
+	} else if tracing.Enabled() {
+		logger.Info(
+			"OpenTelemetry tracing enabled",
+			"service",
+			"shortscale-analytics-consumer",
+		)
+	}
 
 	metrics, err := observability.NewConsumerMetrics()
 	if err != nil {
@@ -229,6 +248,20 @@ func run() int {
 			"error", err,
 		)
 		exitCode = 1
+	}
+
+	tracingShutdownCtx, tracingShutdownCancel := context.WithTimeout(
+		context.Background(),
+		tracingShutdownTimeout,
+	)
+	defer tracingShutdownCancel()
+
+	if err := tracing.Shutdown(tracingShutdownCtx); err != nil {
+		logger.Warn(
+			"failed to flush OpenTelemetry traces",
+			"error",
+			err,
+		)
 	}
 
 	return exitCode
