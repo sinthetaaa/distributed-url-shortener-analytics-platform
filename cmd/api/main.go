@@ -87,7 +87,20 @@ func main() {
 	cache := urlcache.NewURLCache(redisClient, urlCacheTTL)
 	finder := newCachedURLFinder(logger, cache, queries)
 
-	router := newRouter(logger, pool, queries, finder)
+	createURLLimiter := newRedisTokenBucketLimiter(
+		logger,
+		redisClient,
+		createURLRateLimitCapacity,
+		createURLRateLimitRefillPerSecond,
+	)
+
+	router := newRouterWithRateLimiter(
+		logger,
+		pool,
+		queries,
+		finder,
+		createURLLimiter,
+	)
 
 	server := &http.Server{
 		Addr:    addr,
@@ -158,16 +171,30 @@ func newRouter(
 	creator urlCreator,
 	finder urlFinder,
 ) http.Handler {
+	return newRouterWithRateLimiter(
+		logger,
+		database,
+		creator,
+		finder,
+		newLocalTokenBucketLimiter(
+			createURLRateLimitCapacity,
+			createURLRateLimitRefillPerSecond,
+		),
+	)
+}
+
+func newRouterWithRateLimiter(
+	logger *slog.Logger,
+	database databasePinger,
+	creator urlCreator,
+	finder urlFinder,
+	createURLLimiter requestRateLimiter,
+) http.Handler {
 	router := chi.NewRouter()
 
 	router.Get("/health/live", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONStatus(w, logger, http.StatusOK, "ok")
 	})
-
-	createURLLimiter := newLocalTokenBucketLimiter(
-		createURLRateLimitCapacity,
-		createURLRateLimitRefillPerSecond,
-	)
 
 	router.With(
 		rateLimitMiddleware(logger, createURLLimiter),
