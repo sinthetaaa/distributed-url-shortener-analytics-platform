@@ -114,6 +114,24 @@ services:
       api:
         condition: service_started
 
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "19090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      api:
+        condition: service_started
+      analytics-consumer:
+        condition: service_started
+
 volumes:
   postgres_data:
   kafka_data:
+  prometheus_data:
