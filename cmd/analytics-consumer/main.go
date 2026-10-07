@@ -6,28 +6,15 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	analytics "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/analytics"
+	database "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/database/generated"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type loggingRedirectEventProcessor struct {
-	logger *slog.Logger
-}
-
-func (p loggingRedirectEventProcessor) Process(
-	_ context.Context,
-	event analytics.RedirectEvent,
-) error {
-	p.logger.Info(
-		"redirect analytics event consumed",
-		"event_id", event.EventID,
-		"event_type", event.EventType,
-		"short_code", event.ShortCode,
-		"occurred_at", event.OccurredAt,
-	)
-
-	return nil
-}
+const analyticsDatabaseStartupTimeout = 5 * time.Second
 
 func main() {
 	os.Exit(run())
@@ -42,6 +29,51 @@ func run() int {
 	if err != nil {
 		logger.Error(
 			"failed to load analytics consumer configuration",
+			"error", err,
+		)
+		return 1
+	}
+
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		logger.Error("DATABASE_URL is required")
+		return 1
+	}
+
+	databaseCtx, databaseCancel := context.WithTimeout(
+		context.Background(),
+		analyticsDatabaseStartupTimeout,
+	)
+	defer databaseCancel()
+
+	pool, err := pgxpool.New(databaseCtx, databaseURL)
+	if err != nil {
+		logger.Error(
+			"failed to create analytics database connection pool",
+			"error", err,
+		)
+		return 1
+	}
+	defer pool.Close()
+
+	if err := pool.Ping(databaseCtx); err != nil {
+		logger.Error(
+			"failed to connect analytics consumer to database",
+			"error", err,
+		)
+		return 1
+	}
+
+	logger.Info("analytics database connection established")
+
+	queries := database.New(pool)
+
+	processor, err := analytics.NewPostgresRedirectEventProcessor(
+		queries,
+	)
+	if err != nil {
+		logger.Error(
+			"failed to create redirect-event processor",
 			"error", err,
 		)
 		return 1
@@ -72,10 +104,6 @@ func run() int {
 		"client_id", config.ClientID,
 		"reset_offset", config.ResetOffset,
 	)
-
-	processor := loggingRedirectEventProcessor{
-		logger: logger,
-	}
 
 	if err := consumer.Run(ctx, processor); err != nil {
 		logger.Error(

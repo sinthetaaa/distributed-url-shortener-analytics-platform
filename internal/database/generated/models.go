@@ -8,6 +8,14 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type RedirectEvent struct {
+	EventID    string             `json:"event_id"`
+	EventType  string             `json:"event_type"`
+	ShortCode  string             `json:"short_code"`
+	OccurredAt pgtype.Timestamptz `json:"occurred_at"`
+	IngestedAt pgtype.Timestamptz `json:"ingested_at"`
+}
+
 type Url struct {
 	ID          int64              `json:"id"`
 	ShortCode   string             `json:"short_code"`
