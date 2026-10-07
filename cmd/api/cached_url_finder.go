@@ -36,7 +36,7 @@ func newCachedURLFinder(
 ) *cachedURLFinder {
 	return &cachedURLFinder{
 		logger: logger,
-		cache:  cache,
+		cache:  newCacheCircuitBreaker(cache),
 		source: source,
 	}
 }
@@ -56,9 +56,11 @@ func (f *cachedURLFinder) GetURLByShortCode(
 		}, nil
 	}
 
-	cacheReadFailed := !errors.Is(cacheErr, urlcache.ErrMiss)
+	cacheMiss := errors.Is(cacheErr, urlcache.ErrMiss)
+	circuitOpen := errors.Is(cacheErr, errCacheCircuitOpen)
+	cacheReadFailed := !cacheMiss
 
-	if cacheReadFailed {
+	if cacheReadFailed && !circuitOpen {
 		f.logger.Warn(
 			"failed to read URL from cache; falling back to database",
 			"short_code", shortCode,
@@ -84,6 +86,8 @@ func (f *cachedURLFinder) GetURLByShortCode(
 				return database.Url{}, err
 			}
 
+			// Redis infrastructure failure or an open circuit means we
+			// intentionally avoid a second cache operation for this lookup.
 			if cacheReadFailed {
 				return found, nil
 			}
@@ -99,11 +103,13 @@ func (f *cachedURLFinder) GetURLByShortCode(
 				shortCode,
 				found.OriginalUrl,
 			); err != nil {
-				f.logger.Warn(
-					"failed to populate URL cache",
-					"short_code", shortCode,
-					"error", err,
-				)
+				if !errors.Is(err, errCacheCircuitOpen) {
+					f.logger.Warn(
+						"failed to populate URL cache",
+						"short_code", shortCode,
+						"error", err,
+					)
+				}
 			}
 
 			return found, nil
