@@ -117,6 +117,16 @@ func run() int {
 	}
 	defer consumer.Close()
 
+	lagReader, err := analytics.NewKafkaConsumerLagReader(config)
+	if err != nil {
+		logger.Error(
+			"failed to create analytics consumer lag reader",
+			"error", err,
+		)
+		return 1
+	}
+	defer lagReader.Close()
+
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,
@@ -143,6 +153,13 @@ func run() int {
 			metricsErrors <- err
 		}
 	}()
+
+	go monitorAnalyticsConsumerLag(
+		ctx,
+		logger,
+		lagReader,
+		metrics,
+	)
 
 	logger.Info(
 		"starting ShortScale analytics consumer",

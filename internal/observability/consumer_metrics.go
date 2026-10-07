@@ -12,9 +12,11 @@ import (
 type ConsumerMetrics struct {
 	Registry *prometheus.Registry
 
-	ProcessedTotal   prometheus.Counter
-	FailuresTotal    *prometheus.CounterVec
-	PersistenceTotal *prometheus.CounterVec
+	ProcessedTotal             prometheus.Counter
+	FailuresTotal              *prometheus.CounterVec
+	PersistenceTotal           *prometheus.CounterVec
+	LagRecords                 prometheus.Gauge
+	LagCollectionFailuresTotal prometheus.Counter
 }
 
 func NewConsumerMetrics() (*ConsumerMetrics, error) {
@@ -55,12 +57,32 @@ func NewConsumerMetrics() (*ConsumerMetrics, error) {
 				"result",
 			},
 		),
+
+		LagRecords: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: namespace,
+				Subsystem: "analytics_consumer",
+				Name:      "lag_records",
+				Help:      "Current committed consumer-group lag across all assigned redirect-event partitions.",
+			},
+		),
+
+		LagCollectionFailuresTotal: prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Namespace: namespace,
+				Subsystem: "analytics_consumer",
+				Name:      "lag_collection_failures_total",
+				Help:      "Total number of failed Kafka consumer-lag collection attempts.",
+			},
+		),
 	}
 
 	collectorsToRegister := []prometheus.Collector{
 		metrics.ProcessedTotal,
 		metrics.FailuresTotal,
 		metrics.PersistenceTotal,
+		metrics.LagRecords,
+		metrics.LagCollectionFailuresTotal,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(
 			collectors.ProcessCollectorOpts{},
