@@ -27,5 +27,19 @@ services:
       retries: 5
       start_period: 5s
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://shortscale:shortscale@postgres:5432/shortscale?sslmode=disable"
+      REDIS_ADDR: "redis:6379"
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:
