@@ -3,12 +3,16 @@ package cache
 import (
 	"context"
 	"errors"
+	"hash/fnv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
-const urlKeyPrefix = "shortscale:url:"
+const (
+	urlKeyPrefix     = "shortscale:url:"
+	ttlJitterPercent = 10
+)
 
 var ErrMiss = errors.New("cache miss")
 
@@ -34,9 +38,12 @@ func (s redisClientStore) Set(
 	return s.client.Set(ctx, key, value, ttl).Err()
 }
 
+type ttlPolicy func(time.Duration, string) time.Duration
+
 type URLCache struct {
-	store redisStore
-	ttl   time.Duration
+	store     redisStore
+	ttl       time.Duration
+	ttlForKey ttlPolicy
 }
 
 func NewURLCache(client *redis.Client, ttl time.Duration) *URLCache {
@@ -44,7 +51,8 @@ func NewURLCache(client *redis.Client, ttl time.Duration) *URLCache {
 		store: redisClientStore{
 			client: client,
 		},
-		ttl: ttl,
+		ttl:       ttl,
+		ttlForKey: jitteredTTL,
 	}
 }
 
@@ -66,12 +74,42 @@ func (c *URLCache) Set(
 	shortCode string,
 	originalURL string,
 ) error {
+	ttl := c.ttl
+
+	if c.ttlForKey != nil {
+		ttl = c.ttlForKey(c.ttl, shortCode)
+	}
+
 	return c.store.Set(
 		ctx,
 		cacheKey(shortCode),
 		originalURL,
-		c.ttl,
+		ttl,
 	)
+}
+
+func jitteredTTL(
+	baseTTL time.Duration,
+	shortCode string,
+) time.Duration {
+	if baseTTL <= 0 {
+		return baseTTL
+	}
+
+	maxJitter := baseTTL * ttlJitterPercent / 100
+	if maxJitter <= 0 {
+		return baseTTL
+	}
+
+	hasher := fnv.New64a()
+
+	_, _ = hasher.Write([]byte(shortCode))
+
+	hash := hasher.Sum64()
+	jitterSpan := uint64(maxJitter)*2 + 1
+	offset := time.Duration(hash%jitterSpan) - maxJitter
+
+	return baseTTL + offset
 }
 
 func cacheKey(shortCode string) string {
