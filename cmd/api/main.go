@@ -15,11 +15,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 type config struct {
 	Port        string
 	DatabaseURL string
+	RedisAddr   string
 }
 
 type databasePinger interface {
@@ -51,6 +53,23 @@ func main() {
 	}
 
 	logger.Info("database connection established")
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: cfg.RedisAddr,
+	})
+	defer redisClient.Close()
+
+	redisCtx, redisCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer redisCancel()
+
+	if err := redisClient.Ping(redisCtx).Err(); err != nil {
+		logger.Warn(
+			"redis unavailable at startup; continuing without cache",
+			"error", err,
+		)
+	} else {
+		logger.Info("redis connection established")
+	}
 
 	addr := ":" + cfg.Port
 
@@ -109,9 +128,15 @@ func loadConfig() (config, error) {
 		return config{}, fmt.Errorf("DATABASE_URL is required")
 	}
 
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		return config{}, fmt.Errorf("REDIS_ADDR is required")
+	}
+
 	return config{
 		Port:        port,
 		DatabaseURL: databaseURL,
+		RedisAddr:   redisAddr,
 	}, nil
 }
 
