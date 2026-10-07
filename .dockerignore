@@ -1,0 +1,15 @@
+.git
+.gitignore
+
+.env
+.env.*
+
+*.log
+*.tmp
+
+coverage.out
+bin/
+dist/
+
+docs/
+benchmarks/
