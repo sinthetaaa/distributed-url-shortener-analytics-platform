@@ -81,6 +81,7 @@ services:
       PORT: "8080"
       DATABASE_URL: "postgres://shortscale:shortscale@postgres:5432/shortscale?sslmode=disable"
       REDIS_ADDR: "redis:6379"
+      KAFKA_BROKERS: "kafka:19092"
     expose:
       - "8080"
     depends_on:

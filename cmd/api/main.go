@@ -19,7 +19,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const urlCacheTTL = time.Hour
+const (
+	urlCacheTTL                      = time.Hour
+	redirectAnalyticsShutdownTimeout = 2 * time.Second
+)
 
 type config struct {
 	Port        string
@@ -81,6 +84,8 @@ func main() {
 		logger.Info("redis connection established")
 	}
 
+	redirectRecorder, closeRedirectAnalytics := newProductionRedirectEventRecorder(logger)
+
 	addr := ":" + cfg.Port
 
 	queries := database.New(pool)
@@ -94,12 +99,13 @@ func main() {
 		createURLRateLimitRefillPerSecond,
 	)
 
-	router := newRouterWithRateLimiter(
+	router := newRouterWithRateLimiterAndRedirectEvents(
 		logger,
 		pool,
 		queries,
 		finder,
 		createURLLimiter,
+		redirectRecorder,
 	)
 
 	server := &http.Server{
@@ -129,8 +135,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
 
 	logger.Info("shutting down ShortScale API")
 
@@ -138,6 +144,14 @@ func main() {
 		logger.Error("graceful shutdown failed", "error", err)
 		os.Exit(1)
 	}
+
+	analyticsShutdownCtx, analyticsShutdownCancel := context.WithTimeout(
+		context.Background(),
+		redirectAnalyticsShutdownTimeout,
+	)
+	defer analyticsShutdownCancel()
+
+	closeRedirectAnalytics(analyticsShutdownCtx)
 
 	logger.Info("ShortScale API stopped")
 }
@@ -190,6 +204,24 @@ func newRouterWithRateLimiter(
 	finder urlFinder,
 	createURLLimiter requestRateLimiter,
 ) http.Handler {
+	return newRouterWithRateLimiterAndRedirectEvents(
+		logger,
+		database,
+		creator,
+		finder,
+		createURLLimiter,
+		noopRedirectEventRecorder{},
+	)
+}
+
+func newRouterWithRateLimiterAndRedirectEvents(
+	logger *slog.Logger,
+	database databasePinger,
+	creator urlCreator,
+	finder urlFinder,
+	createURLLimiter requestRateLimiter,
+	redirectRecorder redirectEventRecorder,
+) http.Handler {
 	router := chi.NewRouter()
 
 	router.Get("/health/live", func(w http.ResponseWriter, r *http.Request) {
@@ -216,7 +248,10 @@ func newRouterWithRateLimiter(
 		writeJSONStatus(w, logger, http.StatusOK, "ok")
 	})
 
-	router.Get("/{shortCode}", redirectURLHandler(logger, finder))
+	router.Get(
+		"/{shortCode}",
+		redirectURLHandlerWithEvents(logger, finder, redirectRecorder),
+	)
 
 	return router
 }
