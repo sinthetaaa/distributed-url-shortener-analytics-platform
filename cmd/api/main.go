@@ -99,13 +99,14 @@ func main() {
 		createURLRateLimitRefillPerSecond,
 	)
 
-	router := newRouterWithRateLimiterAndRedirectEvents(
+	router := newRouterWithDependencies(
 		logger,
 		pool,
 		queries,
 		finder,
 		createURLLimiter,
 		redirectRecorder,
+		queries,
 	)
 
 	server := &http.Server{
@@ -222,6 +223,26 @@ func newRouterWithRateLimiterAndRedirectEvents(
 	createURLLimiter requestRateLimiter,
 	redirectRecorder redirectEventRecorder,
 ) http.Handler {
+	return newRouterWithDependencies(
+		logger,
+		database,
+		creator,
+		finder,
+		createURLLimiter,
+		redirectRecorder,
+		nil,
+	)
+}
+
+func newRouterWithDependencies(
+	logger *slog.Logger,
+	database databasePinger,
+	creator urlCreator,
+	finder urlFinder,
+	createURLLimiter requestRateLimiter,
+	redirectRecorder redirectEventRecorder,
+	analyticsReader redirectAnalyticsReader,
+) http.Handler {
 	router := chi.NewRouter()
 
 	router.Get("/health/live", func(w http.ResponseWriter, r *http.Request) {
@@ -234,6 +255,13 @@ func newRouterWithRateLimiterAndRedirectEvents(
 		"/api/v1/urls",
 		createURLHandler(logger, creator),
 	)
+
+	if analyticsReader != nil {
+		router.Get(
+			"/api/v1/urls/{shortCode}/analytics",
+			redirectAnalyticsHandler(logger, analyticsReader),
+		)
+	}
 
 	router.Get("/health/ready", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
