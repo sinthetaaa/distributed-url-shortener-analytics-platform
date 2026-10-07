@@ -11,6 +11,71 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getDailyRedirectCounts = `-- name: GetDailyRedirectCounts :many
+SELECT
+    (occurred_at AT TIME ZONE 'UTC')::date AS day,
+    COUNT(*)::bigint AS redirects
+FROM redirect_events
+WHERE short_code = $1
+  AND occurred_at >= $2
+  AND occurred_at < $3
+GROUP BY day
+ORDER BY day
+`
+
+type GetDailyRedirectCountsParams struct {
+	ShortCode string             `json:"short_code"`
+	StartAt   pgtype.Timestamptz `json:"start_at"`
+	EndAt     pgtype.Timestamptz `json:"end_at"`
+}
+
+type GetDailyRedirectCountsRow struct {
+	Day       pgtype.Date `json:"day"`
+	Redirects int64       `json:"redirects"`
+}
+
+func (q *Queries) GetDailyRedirectCounts(ctx context.Context, arg GetDailyRedirectCountsParams) ([]GetDailyRedirectCountsRow, error) {
+	rows, err := q.db.Query(ctx, getDailyRedirectCounts, arg.ShortCode, arg.StartAt, arg.EndAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetDailyRedirectCountsRow{}
+	for rows.Next() {
+		var i GetDailyRedirectCountsRow
+		if err := rows.Scan(&i.Day, &i.Redirects); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRedirectAnalyticsSummary = `-- name: GetRedirectAnalyticsSummary :one
+SELECT
+    COUNT(*)::bigint AS total_redirects,
+    MIN(occurred_at)::timestamptz AS first_redirect_at,
+    MAX(occurred_at)::timestamptz AS last_redirect_at
+FROM redirect_events
+WHERE short_code = $1
+`
+
+type GetRedirectAnalyticsSummaryRow struct {
+	TotalRedirects  int64              `json:"total_redirects"`
+	FirstRedirectAt pgtype.Timestamptz `json:"first_redirect_at"`
+	LastRedirectAt  pgtype.Timestamptz `json:"last_redirect_at"`
+}
+
+func (q *Queries) GetRedirectAnalyticsSummary(ctx context.Context, shortCode string) (GetRedirectAnalyticsSummaryRow, error) {
+	row := q.db.QueryRow(ctx, getRedirectAnalyticsSummary, shortCode)
+	var i GetRedirectAnalyticsSummaryRow
+	err := row.Scan(&i.TotalRedirects, &i.FirstRedirectAt, &i.LastRedirectAt)
+	return i, err
+}
+
 const getRedirectEventByID = `-- name: GetRedirectEventByID :one
 SELECT
     event_id,
