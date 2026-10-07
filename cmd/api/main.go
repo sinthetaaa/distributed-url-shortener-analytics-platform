@@ -11,12 +11,15 @@ import (
 	"syscall"
 	"time"
 
+	urlcache "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/cache"
 	database "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/database/generated"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
+
+const urlCacheTTL = time.Hour
 
 type config struct {
 	Port        string
@@ -55,7 +58,14 @@ func main() {
 	logger.Info("database connection established")
 
 	redisClient := redis.NewClient(&redis.Options{
-		Addr: cfg.RedisAddr,
+		Addr:                  cfg.RedisAddr,
+		MaxRetries:            -1,
+		DialerRetries:         1,
+		DialerRetryTimeout:    10 * time.Millisecond,
+		DialTimeout:           50 * time.Millisecond,
+		ReadTimeout:           50 * time.Millisecond,
+		WriteTimeout:          50 * time.Millisecond,
+		ContextTimeoutEnabled: true,
 	})
 	defer redisClient.Close()
 
@@ -74,8 +84,10 @@ func main() {
 	addr := ":" + cfg.Port
 
 	queries := database.New(pool)
+	cache := urlcache.NewURLCache(redisClient, urlCacheTTL)
+	finder := newCachedURLFinder(logger, cache, queries)
 
-	router := newRouter(logger, pool, queries, queries)
+	router := newRouter(logger, pool, queries, finder)
 
 	server := &http.Server{
 		Addr:    addr,
