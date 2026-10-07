@@ -164,7 +164,17 @@ func newRouter(
 		writeJSONStatus(w, logger, http.StatusOK, "ok")
 	})
 
-	router.Post("/api/v1/urls", createURLHandler(logger, creator))
+	createURLLimiter := newLocalTokenBucketLimiter(
+		createURLRateLimitCapacity,
+		createURLRateLimitRefillPerSecond,
+	)
+
+	router.With(
+		rateLimitMiddleware(logger, createURLLimiter),
+	).Post(
+		"/api/v1/urls",
+		createURLHandler(logger, creator),
+	)
 
 	router.Get("/health/ready", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
