@@ -13,6 +13,7 @@ import (
 
 	urlcache "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/cache"
 	database "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/database/generated"
+	"github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/observability"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -36,6 +37,16 @@ type databasePinger interface {
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	metrics, err := observability.NewMetrics()
+	if err != nil {
+		logger.Error(
+			"failed to initialize Prometheus metrics",
+			"error",
+			err,
+		)
+		os.Exit(1)
+	}
 
 	cfg, err := loadConfig()
 	if err != nil {
@@ -99,7 +110,7 @@ func main() {
 		createURLRateLimitRefillPerSecond,
 	)
 
-	router := newRouterWithDependencies(
+	router := newRouterWithDependenciesAndMetrics(
 		logger,
 		pool,
 		queries,
@@ -107,6 +118,7 @@ func main() {
 		createURLLimiter,
 		redirectRecorder,
 		queries,
+		metrics,
 	)
 
 	server := &http.Server{
@@ -243,7 +255,34 @@ func newRouterWithDependencies(
 	redirectRecorder redirectEventRecorder,
 	analyticsReader redirectAnalyticsReader,
 ) http.Handler {
+	return newRouterWithDependenciesAndMetrics(
+		logger,
+		database,
+		creator,
+		finder,
+		createURLLimiter,
+		redirectRecorder,
+		analyticsReader,
+		nil,
+	)
+}
+
+func newRouterWithDependenciesAndMetrics(
+	logger *slog.Logger,
+	database databasePinger,
+	creator urlCreator,
+	finder urlFinder,
+	createURLLimiter requestRateLimiter,
+	redirectRecorder redirectEventRecorder,
+	analyticsReader redirectAnalyticsReader,
+	metrics *observability.Metrics,
+) http.Handler {
 	router := chi.NewRouter()
+
+	if metrics != nil {
+		router.Use(metrics.HTTPMiddleware)
+		router.Handle("/metrics", metrics.Handler())
+	}
 
 	router.Get("/health/live", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONStatus(w, logger, http.StatusOK, "ok")
