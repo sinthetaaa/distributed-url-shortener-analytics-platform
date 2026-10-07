@@ -8,12 +8,18 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/observability"
+
 	"github.com/redis/go-redis/v9"
 )
 
 const (
 	createURLRateLimitRedisKeyPrefix = "shortscale:rate-limit:create-url:"
 	rateLimitRedisOperationTimeout   = 50 * time.Millisecond
+
+	rateLimitResultAllowed  = "allowed"
+	rateLimitResultRejected = "rejected"
+	rateLimitResultFailOpen = "fail_open"
 )
 
 const redisTokenBucketScript = `
@@ -80,6 +86,7 @@ type redisTokenBucketLimiter struct {
 	capacity        int
 	refillPerSecond float64
 	stateTTL        time.Duration
+	metrics         *observability.Metrics
 }
 
 func newRedisTokenBucketLimiter(
@@ -87,6 +94,22 @@ func newRedisTokenBucketLimiter(
 	client redis.Scripter,
 	capacity int,
 	refillPerSecond float64,
+) *redisTokenBucketLimiter {
+	return newRedisTokenBucketLimiterWithMetrics(
+		logger,
+		client,
+		capacity,
+		refillPerSecond,
+		nil,
+	)
+}
+
+func newRedisTokenBucketLimiterWithMetrics(
+	logger *slog.Logger,
+	client redis.Scripter,
+	capacity int,
+	refillPerSecond float64,
+	metrics *observability.Metrics,
 ) *redisTokenBucketLimiter {
 	if capacity <= 0 {
 		panic("rate-limit capacity must be positive")
@@ -114,6 +137,7 @@ func newRedisTokenBucketLimiter(
 		capacity:        capacity,
 		refillPerSecond: refillPerSecond,
 		stateTTL:        stateTTL,
+		metrics:         metrics,
 	}
 }
 
@@ -141,6 +165,8 @@ func (l *redisTokenBucketLimiter) Allow(identity string) rateLimitDecision {
 			"error", err,
 		)
 
+		l.recordDecision(rateLimitResultFailOpen)
+
 		return rateLimitDecision{
 			Allowed: true,
 		}
@@ -152,6 +178,8 @@ func (l *redisTokenBucketLimiter) Allow(identity string) rateLimitDecision {
 			"identity", identity,
 			"result_length", len(result),
 		)
+
+		l.recordDecision(rateLimitResultFailOpen)
 
 		return rateLimitDecision{
 			Allowed: true,
@@ -166,6 +194,8 @@ func (l *redisTokenBucketLimiter) Allow(identity string) rateLimitDecision {
 			"error", err,
 		)
 
+		l.recordDecision(rateLimitResultFailOpen)
+
 		return rateLimitDecision{
 			Allowed: true,
 		}
@@ -179,12 +209,16 @@ func (l *redisTokenBucketLimiter) Allow(identity string) rateLimitDecision {
 			"error", err,
 		)
 
+		l.recordDecision(rateLimitResultFailOpen)
+
 		return rateLimitDecision{
 			Allowed: true,
 		}
 	}
 
 	if allowed == 1 {
+		l.recordDecision(rateLimitResultAllowed)
+
 		return rateLimitDecision{
 			Allowed: true,
 		}
@@ -194,12 +228,24 @@ func (l *redisTokenBucketLimiter) Allow(identity string) rateLimitDecision {
 		retryAfterMilliseconds = 1
 	}
 
+	l.recordDecision(rateLimitResultRejected)
+
 	return rateLimitDecision{
 		Allowed: false,
 		RetryAfter: time.Duration(
 			retryAfterMilliseconds,
 		) * time.Millisecond,
 	}
+}
+
+func (l *redisTokenBucketLimiter) recordDecision(result string) {
+	if l.metrics == nil {
+		return
+	}
+
+	l.metrics.RateLimitDecisionsTotal.
+		WithLabelValues(result).
+		Inc()
 }
 
 func redisResultInt64(value any) (int64, error) {

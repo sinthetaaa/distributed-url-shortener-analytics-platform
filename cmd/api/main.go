@@ -100,14 +100,18 @@ func main() {
 	addr := ":" + cfg.Port
 
 	queries := database.New(pool)
-	cache := urlcache.NewURLCache(redisClient, urlCacheTTL)
+	cache := newObservedRedirectCache(
+		urlcache.NewURLCache(redisClient, urlCacheTTL),
+		metrics,
+	)
 	finder := newCachedURLFinder(logger, cache, queries)
 
-	createURLLimiter := newRedisTokenBucketLimiter(
+	createURLLimiter := newRedisTokenBucketLimiterWithMetrics(
 		logger,
 		redisClient,
 		createURLRateLimitCapacity,
 		createURLRateLimitRefillPerSecond,
+		metrics,
 	)
 
 	router := newRouterWithDependenciesAndMetrics(

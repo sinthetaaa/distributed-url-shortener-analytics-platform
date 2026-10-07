@@ -15,6 +15,9 @@ type Metrics struct {
 	HTTPRequestsTotal    *prometheus.CounterVec
 	HTTPRequestDuration  *prometheus.HistogramVec
 	HTTPRequestsInFlight prometheus.Gauge
+
+	CacheOperationsTotal    *prometheus.CounterVec
+	RateLimitDecisionsTotal *prometheus.CounterVec
 }
 
 func NewMetrics() (*Metrics, error) {
@@ -72,12 +75,39 @@ func NewMetrics() (*Metrics, error) {
 				Help:      "Current number of HTTP requests being processed.",
 			},
 		),
+
+		CacheOperationsTotal: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace: namespace,
+				Subsystem: "cache",
+				Name:      "operations_total",
+				Help:      "Total number of URL-cache operations by operation and result.",
+			},
+			[]string{
+				"operation",
+				"result",
+			},
+		),
+
+		RateLimitDecisionsTotal: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Namespace: namespace,
+				Subsystem: "rate_limit",
+				Name:      "decisions_total",
+				Help:      "Total number of distributed rate-limit decisions by result.",
+			},
+			[]string{
+				"result",
+			},
+		),
 	}
 
 	metricCollectors := []prometheus.Collector{
 		metrics.HTTPRequestsTotal,
 		metrics.HTTPRequestDuration,
 		metrics.HTTPRequestsInFlight,
+		metrics.CacheOperationsTotal,
+		metrics.RateLimitDecisionsTotal,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(
 			collectors.ProcessCollectorOpts{},
