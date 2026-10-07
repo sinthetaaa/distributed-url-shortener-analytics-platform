@@ -82,6 +82,8 @@ services:
       DATABASE_URL: "postgres://shortscale:shortscale@postgres:5432/shortscale?sslmode=disable"
       REDIS_ADDR: "redis:6379"
       KAFKA_BROKERS: "kafka:19092"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
     expose:
       - "8080"
     depends_on:
@@ -96,6 +98,8 @@ services:
       DATABASE_URL: "postgres://shortscale:shortscale@postgres:5432/shortscale?sslmode=disable"
       KAFKA_BROKERS: "kafka:19092"
       ANALYTICS_METRICS_ADDR: ":9091"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
     ports:
       - "19091:9091"
     depends_on:
@@ -131,6 +135,26 @@ services:
       analytics-consumer:
         condition: service_started
 
+  tempo:
+    image: grafana/tempo:3.1.0
+    command:
+      - -config.file=/etc/tempo/config.yml
+    ports:
+      - "13200:3200"
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo/config.yml:ro
+      - tempo_data:/var/tempo
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.162.0
+    command:
+      - --config=/etc/otelcol/config.yml
+    volumes:
+      - ./otel-collector/config.yml:/etc/otelcol/config.yml:ro
+    depends_on:
+      tempo:
+        condition: service_started
+
   grafana:
     image: grafana/grafana:13.2.2
     environment:
@@ -153,3 +177,4 @@ volumes:
   kafka_data:
   prometheus_data:
   grafana_data:
+  tempo_data:
