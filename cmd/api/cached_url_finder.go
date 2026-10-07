@@ -8,9 +8,14 @@ import (
 
 	urlcache "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/cache"
 	database "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/database/generated"
+
+	"golang.org/x/sync/singleflight"
 )
 
-const cacheOperationTimeout = 50 * time.Millisecond
+const (
+	cacheOperationTimeout       = 50 * time.Millisecond
+	sharedDatabaseLookupTimeout = 2 * time.Second
+)
 
 type redirectCache interface {
 	Get(context.Context, string) (string, error)
@@ -18,9 +23,10 @@ type redirectCache interface {
 }
 
 type cachedURLFinder struct {
-	logger *slog.Logger
-	cache  redirectCache
-	source urlFinder
+	logger          *slog.Logger
+	cache           redirectCache
+	source          urlFinder
+	databaseLookups singleflight.Group
 }
 
 func newCachedURLFinder(
@@ -60,26 +66,66 @@ func (f *cachedURLFinder) GetURLByShortCode(
 		)
 	}
 
-	found, err := f.source.GetURLByShortCode(ctx, shortCode)
-	if err != nil {
-		return database.Url{}, err
-	}
+	resultCh := f.databaseLookups.DoChan(
+		shortCode,
+		func() (any, error) {
+			detachedCtx := context.WithoutCancel(ctx)
+			sharedCtx, sharedCancel := context.WithTimeout(
+				detachedCtx,
+				sharedDatabaseLookupTimeout,
+			)
+			defer sharedCancel()
 
-	if cacheReadFailed {
+			found, err := f.source.GetURLByShortCode(
+				sharedCtx,
+				shortCode,
+			)
+			if err != nil {
+				return database.Url{}, err
+			}
+
+			if cacheReadFailed {
+				return found, nil
+			}
+
+			cacheCtx, cacheCancel := context.WithTimeout(
+				sharedCtx,
+				cacheOperationTimeout,
+			)
+			defer cacheCancel()
+
+			if err := f.cache.Set(
+				cacheCtx,
+				shortCode,
+				found.OriginalUrl,
+			); err != nil {
+				f.logger.Warn(
+					"failed to populate URL cache",
+					"short_code", shortCode,
+					"error", err,
+				)
+			}
+
+			return found, nil
+		},
+	)
+
+	select {
+	case <-ctx.Done():
+		return database.Url{}, ctx.Err()
+
+	case result := <-resultCh:
+		if result.Err != nil {
+			return database.Url{}, result.Err
+		}
+
+		found, ok := result.Val.(database.Url)
+		if !ok {
+			return database.Url{}, errors.New(
+				"unexpected URL lookup result type",
+			)
+		}
+
 		return found, nil
 	}
-
-	cacheCtx, cacheCancel = context.WithTimeout(ctx, cacheOperationTimeout)
-	cacheErr = f.cache.Set(cacheCtx, shortCode, found.OriginalUrl)
-	cacheCancel()
-
-	if cacheErr != nil {
-		f.logger.Warn(
-			"failed to populate URL cache",
-			"short_code", shortCode,
-			"error", cacheErr,
-		)
-	}
-
-	return found, nil
 }
