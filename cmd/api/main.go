@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,6 +10,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	database "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/database/generated"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -53,7 +54,9 @@ func main() {
 
 	addr := ":" + cfg.Port
 
-	router := newRouter(logger, pool)
+	queries := database.New(pool)
+
+	router := newRouter(logger, pool, queries, queries)
 
 	server := &http.Server{
 		Addr:    addr,
@@ -112,12 +115,19 @@ func loadConfig() (config, error) {
 	}, nil
 }
 
-func newRouter(logger *slog.Logger, database databasePinger) http.Handler {
+func newRouter(
+	logger *slog.Logger,
+	database databasePinger,
+	creator urlCreator,
+	finder urlFinder,
+) http.Handler {
 	router := chi.NewRouter()
 
 	router.Get("/health/live", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONStatus(w, logger, http.StatusOK, "ok")
 	})
+
+	router.Post("/api/v1/urls", createURLHandler(logger, creator))
 
 	router.Get("/health/ready", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -132,16 +142,13 @@ func newRouter(logger *slog.Logger, database databasePinger) http.Handler {
 		writeJSONStatus(w, logger, http.StatusOK, "ok")
 	})
 
+	router.Get("/{shortCode}", redirectURLHandler(logger, finder))
+
 	return router
 }
 
 func writeJSONStatus(w http.ResponseWriter, logger *slog.Logger, statusCode int, status string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-
-	if err := json.NewEncoder(w).Encode(map[string]string{
+	writeJSON(w, logger, statusCode, map[string]string{
 		"status": status,
-	}); err != nil {
-		logger.Error("failed to encode health response", "error", err)
-	}
+	})
 }
