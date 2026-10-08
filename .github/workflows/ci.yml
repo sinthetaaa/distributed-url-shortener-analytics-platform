@@ -190,3 +190,63 @@ jobs:
 
           test "$CONSUMER_USER" = "65532:65532"
           test "$CONSUMER_ENTRYPOINT" = '["/shortscale-analytics-consumer"]'
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+
+      - name: Scan reachable Go vulnerabilities
+        run: govulncheck ./...
+
+      - name: Scan repository
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.75.0
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Build API image for scanning
+        run: docker build -f Dockerfile -t shortscale-api:security .
+
+      - name: Scan API image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.75.0
+          scan-type: image
+          image-ref: shortscale-api:security
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Build analytics consumer image for scanning
+        run: docker build -f Dockerfile.analytics-consumer -t shortscale-analytics-consumer:security .
+
+      - name: Scan analytics consumer image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.75.0
+          scan-type: image
+          image-ref: shortscale-analytics-consumer:security
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
