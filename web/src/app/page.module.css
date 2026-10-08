@@ -68,3 +68,45 @@
     gap: 18px;
   }
 }
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  .page {
+    padding-right: var(--page-gutter-tablet);
+    padding-left: var(--page-gutter-tablet);
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    min-height: auto;
+    padding: 14px 0;
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  .brand {
+    font-size: 23px;
+  }
+
+  .nav {
+    gap: 14px;
+  }
+
+  .navLink {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+  }
+}
+
+@media (max-width: 360px) {
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

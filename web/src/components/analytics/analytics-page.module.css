@@ -386,3 +386,120 @@
     flex: 1;
   }
 }
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  .page {
+    padding-right: var(--page-gutter-tablet);
+    padding-left: var(--page-gutter-tablet);
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    min-height: auto;
+    padding: 14px 0;
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  .brand {
+    font-size: 23px;
+  }
+
+  .nav {
+    gap: 14px;
+  }
+
+  .navLink {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .analytics,
+  .state,
+  .loading {
+    padding-top: 48px;
+  }
+
+  .intro {
+    padding-bottom: 32px;
+  }
+
+  .eyebrow {
+    margin-top: 24px;
+  }
+
+  .title {
+    font-size: 40px;
+    overflow-wrap: anywhere;
+  }
+
+  .shortURL {
+    width: 100%;
+    font-size: 14px;
+  }
+
+  .metricBlock {
+    padding: 36px 0;
+  }
+
+  .metricValue {
+    margin-bottom: 28px;
+    font-size: 60px;
+  }
+
+  .chartHeader {
+    padding-top: 32px;
+  }
+
+  .chartTitle {
+    font-size: 26px;
+  }
+
+  .rangeButton {
+    min-width: 0;
+    height: 44px;
+  }
+
+  .chartWrap {
+    overflow-x: hidden;
+    padding-top: 18px;
+  }
+
+  .chart {
+    min-width: 100%;
+  }
+
+  .retryButton {
+    min-height: 44px;
+  }
+
+  .stateTitle {
+    font-size: 38px;
+  }
+
+  .loadingTitle {
+    width: min(220px, 72vw);
+  }
+
+  .loadingMetric {
+    width: min(180px, 56vw);
+  }
+}
+
+@media (max-width: 360px) {
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .metricValue {
+    font-size: 54px;
+  }
+}

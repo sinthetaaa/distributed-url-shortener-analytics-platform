@@ -175,3 +175,32 @@
     text-align: right;
   }
 }
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  .foundation {
+    padding-right: var(--page-gutter-tablet);
+    padding-left: var(--page-gutter-tablet);
+  }
+}
+
+@media (max-width: 768px) {
+  .foundation__logout-button {
+    min-height: 44px;
+    padding: 10px 0;
+  }
+
+  .foundation__logout-error {
+    max-width: 220px;
+  }
+}
+
+@media (max-width: 420px) {
+  .foundation__logout {
+    justify-items: start;
+  }
+
+  .foundation__logout-error {
+    max-width: none;
+    text-align: left;
+  }
+}

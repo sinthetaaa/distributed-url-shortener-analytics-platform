@@ -214,3 +214,46 @@
     overflow-wrap: anywhere;
   }
 }
+
+@media (max-width: 480px) {
+  .shortener {
+    padding-top: 52px;
+  }
+
+  .title {
+    font-size: 40px;
+    line-height: 1.02;
+  }
+
+  .description {
+    margin-top: 14px;
+    font-size: 15px;
+  }
+
+  .form {
+    margin-top: 28px;
+  }
+
+  .result {
+    margin-top: 28px;
+    padding: 20px 0;
+  }
+
+  .resultPrimary {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .shortURL {
+    width: 100%;
+    font-size: 16px;
+  }
+
+  .copyButton {
+    align-self: flex-start;
+    min-width: 76px;
+    min-height: 44px;
+    padding: 9px 14px;
+  }
+}

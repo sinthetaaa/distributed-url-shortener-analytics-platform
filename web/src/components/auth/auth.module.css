@@ -242,3 +242,58 @@
   background: var(--color-accent);
   opacity: 0.68;
 }
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  .page {
+    padding-right: var(--page-gutter-tablet);
+    padding-left: var(--page-gutter-tablet);
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    align-items: flex-start;
+    padding-top: 40px;
+    padding-bottom: 40px;
+  }
+
+  .shell {
+    max-width: none;
+  }
+
+  .brand {
+    margin-bottom: 36px;
+    font-size: 26px;
+  }
+
+  .header {
+    margin-bottom: 24px;
+  }
+
+  .title {
+    font-size: 36px;
+  }
+
+  .description {
+    font-size: 14px;
+  }
+
+  .form {
+    gap: 18px;
+  }
+
+  .passwordToggle {
+    min-width: 44px;
+    min-height: 44px;
+    right: 4px;
+    padding: 0 8px;
+  }
+
+  .passwordInput {
+    padding-right: 60px;
+  }
+
+  .footer {
+    margin-top: 24px;
+  }
+}
