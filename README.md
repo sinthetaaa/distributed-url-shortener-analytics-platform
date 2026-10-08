@@ -40,6 +40,12 @@ It has since evolved to include Redis caching, horizontal API scaling behind Ngi
 - explicit container shutdown grace periods
 - measured failure, recovery, load, database-growth, partitioning, and sharding experiments
 - automated Go tests and regression coverage
+- eight-job GitHub Actions CI pipeline
+- deterministic sqlc and migration round-trip validation
+- reachable dependency and production-image vulnerability scanning
+- repository secret and misconfiguration scanning
+- non-root, read-only application containers with dropped Linux capabilities
+- CI-enforced application runtime-hardening invariants
 
 ## Current Stack
 
@@ -167,31 +173,35 @@ See [Failure Engineering & Resilience](docs/resilience.md) for the full experime
 
 ## Project Status
 
-**Phase 13 — Database Scaling & Distributed-System Analysis: complete**
+**Phase 14 — Production Hardening & CI: complete**
 
-Completed through Phase 13:
+Production-readiness controls now include:
 
-- PostgreSQL baseline and query-plan analysis
-- controlled analytics dataset growth through one million events
-- hot-key and selective-query scaling analysis
-- index/storage trade-off benchmarking
-- exact daily analytics pre-aggregation
-- historical rollup backfill
-- atomic duplicate-safe raw-event + rollup persistence
-- optimized lifetime analytics summary
-- mixed read/write workload analysis
-- evidence-based decision not to deploy a read replica yet
-- time-partitioning retention benchmark
-- explicit global-idempotency trade-off analysis for partitioning
-- short-code vs event-ID sharding distribution analysis
-- evidence-based decision not to shard at current scale
+- golangci-lint and static-analysis enforcement
+- tests, race detection, and build validation
+- deterministic sqlc generation checks
+- PostgreSQL migration up/down/up validation
+- production container artifact validation
+- govulncheck reachable-vulnerability scanning
+- Trivy repository, secret, misconfiguration, and image scanning
+- non-root scratch application images
+- read-only application root filesystems
+- all Linux capabilities dropped from custom application containers
+- `no-new-privileges` enforcement
+- CI regression assertions for runtime-hardening settings
+- deliberate CI failure experiments proving the gates reject regressions
 
-**Next:** Phase 14 — Production Hardening & CI.
+All eight GitHub Actions jobs pass on `main`.
+
+See [Production Hardening & CI](docs/production-hardening.md) for the complete Phase 14 audit, security baseline, runtime validation, CI design, and failure experiments.
+
+**Next:** Phase 15 — Deployment.
 
 ## Documentation
 
 Detailed architecture, engineering decisions, benchmarks, observability, and failure experiments are maintained under [`docs/`](docs/).
 
+- [Production hardening, CI, security scanning, and Phase 14 failure experiments](docs/production-hardening.md)
 - [Database scaling benchmarks and distributed-system trade-offs](docs/database-scaling.md)
 - [Failure engineering, resilience matrix, and Phase 12 experiments](docs/resilience.md)
 - [Observability architecture, metrics, tracing, and Phase 11 experiments](docs/observability.md)
