@@ -11,6 +11,43 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createOwnedURL = `-- name: CreateOwnedURL :one
+INSERT INTO urls (
+    short_code,
+    original_url,
+    expires_at,
+    user_id
+)
+VALUES ($1, $2, $3, $4)
+RETURNING id, short_code, original_url, created_at, expires_at, user_id
+`
+
+type CreateOwnedURLParams struct {
+	ShortCode   string             `json:"short_code"`
+	OriginalUrl string             `json:"original_url"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	UserID      pgtype.Int8        `json:"user_id"`
+}
+
+func (q *Queries) CreateOwnedURL(ctx context.Context, arg CreateOwnedURLParams) (Url, error) {
+	row := q.db.QueryRow(ctx, createOwnedURL,
+		arg.ShortCode,
+		arg.OriginalUrl,
+		arg.ExpiresAt,
+		arg.UserID,
+	)
+	var i Url
+	err := row.Scan(
+		&i.ID,
+		&i.ShortCode,
+		&i.OriginalUrl,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.UserID,
+	)
+	return i, err
+}
+
 const createURL = `-- name: CreateURL :one
 INSERT INTO urls (
     short_code,
@@ -18,7 +55,7 @@ INSERT INTO urls (
     expires_at
 )
 VALUES ($1, $2, $3)
-RETURNING id, short_code, original_url, created_at, expires_at
+RETURNING id, short_code, original_url, created_at, expires_at, user_id
 `
 
 type CreateURLParams struct {
@@ -36,12 +73,13 @@ func (q *Queries) CreateURL(ctx context.Context, arg CreateURLParams) (Url, erro
 		&i.OriginalUrl,
 		&i.CreatedAt,
 		&i.ExpiresAt,
+		&i.UserID,
 	)
 	return i, err
 }
 
 const getURLByShortCode = `-- name: GetURLByShortCode :one
-SELECT id, short_code, original_url, created_at, expires_at
+SELECT id, short_code, original_url, created_at, expires_at, user_id
 FROM urls
 WHERE short_code = $1
 `
@@ -55,6 +93,73 @@ func (q *Queries) GetURLByShortCode(ctx context.Context, shortCode string) (Url,
 		&i.OriginalUrl,
 		&i.CreatedAt,
 		&i.ExpiresAt,
+		&i.UserID,
 	)
 	return i, err
+}
+
+const getURLByShortCodeForUser = `-- name: GetURLByShortCodeForUser :one
+SELECT id, short_code, original_url, created_at, expires_at, user_id
+FROM urls
+WHERE short_code = $1
+  AND user_id = $2
+`
+
+type GetURLByShortCodeForUserParams struct {
+	ShortCode string      `json:"short_code"`
+	UserID    pgtype.Int8 `json:"user_id"`
+}
+
+func (q *Queries) GetURLByShortCodeForUser(ctx context.Context, arg GetURLByShortCodeForUserParams) (Url, error) {
+	row := q.db.QueryRow(ctx, getURLByShortCodeForUser, arg.ShortCode, arg.UserID)
+	var i Url
+	err := row.Scan(
+		&i.ID,
+		&i.ShortCode,
+		&i.OriginalUrl,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.UserID,
+	)
+	return i, err
+}
+
+const listURLsByUser = `-- name: ListURLsByUser :many
+SELECT id, short_code, original_url, created_at, expires_at, user_id
+FROM urls
+WHERE user_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $2
+`
+
+type ListURLsByUserParams struct {
+	UserID pgtype.Int8 `json:"user_id"`
+	Limit  int32       `json:"limit"`
+}
+
+func (q *Queries) ListURLsByUser(ctx context.Context, arg ListURLsByUserParams) ([]Url, error) {
+	rows, err := q.db.Query(ctx, listURLsByUser, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Url{}
+	for rows.Next() {
+		var i Url
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShortCode,
+			&i.OriginalUrl,
+			&i.CreatedAt,
+			&i.ExpiresAt,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
