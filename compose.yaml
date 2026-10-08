@@ -77,6 +77,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    user: "65532:65532"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     environment:
       PORT: "8080"
       DATABASE_URL: "postgres://shortscale:shortscale@postgres:5432/shortscale?sslmode=disable"
@@ -95,6 +101,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.analytics-consumer
+    user: "65532:65532"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     environment:
       DATABASE_URL: "postgres://shortscale:shortscale@postgres:5432/shortscale?sslmode=disable"
       KAFKA_BROKERS: "kafka:19092"
