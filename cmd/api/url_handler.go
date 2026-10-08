@@ -27,6 +27,13 @@ type urlCreator interface {
 	CreateURL(context.Context, database.CreateURLParams) (database.Url, error)
 }
 
+type ownedURLCreator interface {
+	CreateOwnedURL(
+		context.Context,
+		database.CreateOwnedURLParams,
+	) (database.Url, error)
+}
+
 type urlFinder interface {
 	GetURLByShortCode(context.Context, string) (database.Url, error)
 }
@@ -38,6 +45,127 @@ type createURLRequest struct {
 type createURLResponse struct {
 	ShortCode   string `json:"short_code"`
 	OriginalURL string `json:"original_url"`
+}
+
+func createOwnedURLHandler(
+	logger *slog.Logger,
+	creator ownedURLCreator,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := authenticatedUserFromContext(r.Context())
+		if !ok {
+			logger.Error("authenticated user missing from URL creation context")
+			writeJSONError(
+				w,
+				logger,
+				http.StatusInternalServerError,
+				"internal server error",
+			)
+			return
+		}
+
+		var request createURLRequest
+
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+
+		if err := decoder.Decode(&request); err != nil {
+			writeJSONError(
+				w,
+				logger,
+				http.StatusBadRequest,
+				"invalid request body",
+			)
+			return
+		}
+
+		if err := validateOriginalURL(request.URL); err != nil {
+			writeJSONError(
+				w,
+				logger,
+				http.StatusBadRequest,
+				err.Error(),
+			)
+			return
+		}
+
+		for attempt := 0; attempt < maxShortCodeAttempts; attempt++ {
+			shortCode, err := shortcode.Generate(shortCodeLength)
+			if err != nil {
+				logger.Error(
+					"failed to generate short code",
+					"error",
+					err,
+				)
+
+				writeJSONError(
+					w,
+					logger,
+					http.StatusInternalServerError,
+					"internal server error",
+				)
+				return
+			}
+
+			created, err := creator.CreateOwnedURL(
+				r.Context(),
+				database.CreateOwnedURLParams{
+					ShortCode:   shortCode,
+					OriginalUrl: request.URL,
+					ExpiresAt: pgtype.Timestamptz{
+						Valid: false,
+					},
+					UserID: pgtype.Int8{
+						Int64: user.ID,
+						Valid: true,
+					},
+				},
+			)
+			if err == nil {
+				writeJSON(
+					w,
+					logger,
+					http.StatusCreated,
+					createURLResponse{
+						ShortCode:   created.ShortCode,
+						OriginalURL: created.OriginalUrl,
+					},
+				)
+				return
+			}
+
+			if !isShortCodeCollision(err) {
+				logger.Error(
+					"failed to create owned URL",
+					"user_id",
+					user.ID,
+					"error",
+					err,
+				)
+
+				writeJSONError(
+					w,
+					logger,
+					http.StatusInternalServerError,
+					"internal server error",
+				)
+				return
+			}
+		}
+
+		logger.Error(
+			"failed to create owned URL after short-code collision retries",
+			"user_id",
+			user.ID,
+		)
+
+		writeJSONError(
+			w,
+			logger,
+			http.StatusInternalServerError,
+			"internal server error",
+		)
+	}
 }
 
 func createURLHandler(logger *slog.Logger, creator urlCreator) http.HandlerFunc {

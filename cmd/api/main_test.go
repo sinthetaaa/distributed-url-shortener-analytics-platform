@@ -25,12 +25,14 @@ func (f fakeDatabasePinger) Ping(context.Context) error {
 }
 
 type fakeURLStore struct {
-	created      database.Url
-	createErr    error
-	createErrors []error
-	createParams database.CreateURLParams
-	createCalled bool
-	attempts     int
+	created           database.Url
+	createErr         error
+	createErrors      []error
+	createParams      database.CreateURLParams
+	createCalled      bool
+	createOwnedParams database.CreateOwnedURLParams
+	createOwnedCalled bool
+	attempts          int
 
 	found      database.Url
 	findErr    error
@@ -57,6 +59,33 @@ func (f *fakeURLStore) CreateURL(_ context.Context, params database.CreateURLPar
 	created.ShortCode = params.ShortCode
 	created.OriginalUrl = params.OriginalUrl
 	created.ExpiresAt = params.ExpiresAt
+
+	return created, nil
+}
+
+func (f *fakeURLStore) CreateOwnedURL(
+	_ context.Context,
+	params database.CreateOwnedURLParams,
+) (database.Url, error) {
+	f.createOwnedCalled = true
+	f.createOwnedParams = params
+	f.attempts++
+
+	if len(f.createErrors) >= f.attempts {
+		if err := f.createErrors[f.attempts-1]; err != nil {
+			return database.Url{}, err
+		}
+	}
+
+	if f.createErr != nil {
+		return database.Url{}, f.createErr
+	}
+
+	created := f.created
+	created.ShortCode = params.ShortCode
+	created.OriginalUrl = params.OriginalUrl
+	created.ExpiresAt = params.ExpiresAt
+	created.UserID = params.UserID
 
 	return created, nil
 }

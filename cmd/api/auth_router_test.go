@@ -11,6 +11,8 @@ import (
 
 	authpkg "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/auth"
 	database "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/database/generated"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func newAuthIntegrationRouter(
@@ -255,6 +257,233 @@ func TestExistingPublicRedirectRemainsPublicWithAuthEnabled(
 			"status = %d, want %d",
 			recorder.Code,
 			http.StatusFound,
+		)
+	}
+}
+
+func TestCreateURLRequiresAuthenticationWhenAuthEnabled(
+	t *testing.T,
+) {
+	store := &fakeURLStore{}
+
+	router := newRouterWithDependenciesMetricsAndAuth(
+		authTestLogger(),
+		fakeDatabasePinger{},
+		store,
+		store,
+		newLocalTokenBucketLimiter(
+			createURLRateLimitCapacity,
+			createURLRateLimitRefillPerSecond,
+		),
+		noopRedirectEventRecorder{},
+		nil,
+		nil,
+		&fakeAuthenticationService{},
+		false,
+	)
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/urls",
+		strings.NewReader(
+			`{"url":"https://example.com/article"}`,
+		),
+	)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf(
+			"status = %d, want %d",
+			recorder.Code,
+			http.StatusUnauthorized,
+		)
+	}
+
+	if store.createCalled {
+		t.Fatal("legacy CreateURL must not be called")
+	}
+
+	if store.createOwnedCalled {
+		t.Fatal("CreateOwnedURL must not run without authentication")
+	}
+}
+
+func TestCreateURLAssignsAuthenticatedOwner(t *testing.T) {
+	store := &fakeURLStore{}
+
+	service := &fakeAuthenticationService{
+		authenticateFn: func(
+			_ context.Context,
+			token string,
+		) (database.User, error) {
+			if token != "valid-session-token" {
+				t.Fatalf(
+					"Authenticate token = %q",
+					token,
+				)
+			}
+
+			return database.User{
+				ID:    81,
+				Email: "owner@example.com",
+			}, nil
+		},
+	}
+
+	router := newRouterWithDependenciesMetricsAndAuth(
+		authTestLogger(),
+		fakeDatabasePinger{},
+		store,
+		store,
+		newLocalTokenBucketLimiter(
+			createURLRateLimitCapacity,
+			createURLRateLimitRefillPerSecond,
+		),
+		noopRedirectEventRecorder{},
+		nil,
+		nil,
+		service,
+		false,
+	)
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/urls",
+		strings.NewReader(
+			`{"url":"https://example.com/article"}`,
+		),
+	)
+
+	request.AddCookie(
+		&http.Cookie{
+			Name:  sessionCookieName,
+			Value: "valid-session-token",
+		},
+	)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf(
+			"status = %d, want %d: %s",
+			recorder.Code,
+			http.StatusCreated,
+			recorder.Body.String(),
+		)
+	}
+
+	if !store.createOwnedCalled {
+		t.Fatal("expected CreateOwnedURL to be called")
+	}
+
+	if store.createCalled {
+		t.Fatal("legacy CreateURL must not be called")
+	}
+
+	if !store.createOwnedParams.UserID.Valid {
+		t.Fatal("created URL owner must be non-null")
+	}
+
+	if store.createOwnedParams.UserID.Int64 != 81 {
+		t.Fatalf(
+			"owner ID = %d, want 81",
+			store.createOwnedParams.UserID.Int64,
+		)
+	}
+
+	if store.createOwnedParams.OriginalUrl !=
+		"https://example.com/article" {
+		t.Fatalf(
+			"original URL = %q",
+			store.createOwnedParams.OriginalUrl,
+		)
+	}
+}
+
+func TestOwnedURLCreationPreservesCollisionRetry(
+	t *testing.T,
+) {
+	collision := &pgconn.PgError{
+		Code:           "23505",
+		ConstraintName: "urls_short_code_key",
+	}
+
+	store := &fakeURLStore{
+		createErrors: []error{
+			collision,
+			nil,
+		},
+	}
+
+	service := &fakeAuthenticationService{
+		authenticateFn: func(
+			context.Context,
+			string,
+		) (database.User, error) {
+			return database.User{
+				ID:    91,
+				Email: "owner@example.com",
+			}, nil
+		},
+	}
+
+	router := newRouterWithDependenciesMetricsAndAuth(
+		authTestLogger(),
+		fakeDatabasePinger{},
+		store,
+		store,
+		newLocalTokenBucketLimiter(
+			createURLRateLimitCapacity,
+			createURLRateLimitRefillPerSecond,
+		),
+		noopRedirectEventRecorder{},
+		nil,
+		nil,
+		service,
+		false,
+	)
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/urls",
+		strings.NewReader(
+			`{"url":"https://example.com"}`,
+		),
+	)
+
+	request.AddCookie(
+		&http.Cookie{
+			Name:  sessionCookieName,
+			Value: "valid-session-token",
+		},
+	)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf(
+			"status = %d, want %d: %s",
+			recorder.Code,
+			http.StatusCreated,
+			recorder.Body.String(),
+		)
+	}
+
+	if store.attempts != 2 {
+		t.Fatalf(
+			"creation attempts = %d, want 2",
+			store.attempts,
+		)
+	}
+
+	if store.createOwnedParams.UserID.Int64 != 91 {
+		t.Fatalf(
+			"owner ID = %d, want 91",
+			store.createOwnedParams.UserID.Int64,
 		)
 	}
 }

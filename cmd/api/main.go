@@ -422,12 +422,40 @@ func newRouterWithDependenciesMetricsAndAuth(
 		)
 	}
 
-	router.With(
-		rateLimitMiddleware(logger, createURLLimiter),
-	).Post(
-		"/api/v1/urls",
-		createURLHandler(logger, creator),
-	)
+	if authService != nil {
+		ownedCreator, ok := creator.(ownedURLCreator)
+		if !ok {
+			panic("authenticated router requires an owned URL creator")
+		}
+
+		router.With(
+			authenticationMiddleware(
+				logger,
+				authService,
+				cookieSecure,
+			),
+			rateLimitMiddleware(
+				logger,
+				createURLLimiter,
+			),
+		).Post(
+			"/api/v1/urls",
+			createOwnedURLHandler(
+				logger,
+				ownedCreator,
+			),
+		)
+	} else {
+		router.With(
+			rateLimitMiddleware(
+				logger,
+				createURLLimiter,
+			),
+		).Post(
+			"/api/v1/urls",
+			createURLHandler(logger, creator),
+		)
+	}
 
 	if analyticsReader != nil {
 		router.Get(
