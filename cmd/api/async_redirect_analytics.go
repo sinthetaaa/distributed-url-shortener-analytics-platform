@@ -105,15 +105,6 @@ func newAsyncRedirectEventRecorderWithMetrics(
 	return recorder, nil
 }
 
-func newProductionRedirectEventRecorder(
-	logger *slog.Logger,
-) (redirectEventRecorder, func(context.Context)) {
-	return newProductionRedirectEventRecorderWithMetrics(
-		logger,
-		nil,
-	)
-}
-
 func newProductionRedirectEventRecorderWithMetrics(
 	logger *slog.Logger,
 	metrics *observability.Metrics,

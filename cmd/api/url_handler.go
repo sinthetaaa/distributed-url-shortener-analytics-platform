@@ -90,14 +90,6 @@ func createURLHandler(logger *slog.Logger, creator urlCreator) http.HandlerFunc 
 	}
 }
 
-func redirectURLHandler(logger *slog.Logger, finder urlFinder) http.HandlerFunc {
-	return redirectURLHandlerWithEvents(
-		logger,
-		finder,
-		noopRedirectEventRecorder{},
-	)
-}
-
 func redirectURLHandlerWithEvents(
 	logger *slog.Logger,
 	finder urlFinder,

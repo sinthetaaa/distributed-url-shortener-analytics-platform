@@ -89,28 +89,28 @@ func validateKafkaConsumerConfig(
 
 	if len(brokers) == 0 {
 		return KafkaConsumerConfig{}, fmt.Errorf(
-			"Kafka consumer brokers must not be empty",
+			"kafka consumer brokers must not be empty",
 		)
 	}
 
 	topic := strings.TrimSpace(config.Topic)
 	if topic == "" {
 		return KafkaConsumerConfig{}, fmt.Errorf(
-			"Kafka consumer topic must not be empty",
+			"kafka consumer topic must not be empty",
 		)
 	}
 
 	groupID := strings.TrimSpace(config.GroupID)
 	if groupID == "" {
 		return KafkaConsumerConfig{}, fmt.Errorf(
-			"Kafka consumer group id must not be empty",
+			"kafka consumer group id must not be empty",
 		)
 	}
 
 	clientID := strings.TrimSpace(config.ClientID)
 	if clientID == "" {
 		return KafkaConsumerConfig{}, fmt.Errorf(
-			"Kafka consumer client id must not be empty",
+			"kafka consumer client id must not be empty",
 		)
 	}
 
@@ -123,7 +123,7 @@ func validateKafkaConsumerConfig(
 	case kafkaConsumerResetEarliest, kafkaConsumerResetLatest:
 	default:
 		return KafkaConsumerConfig{}, fmt.Errorf(
-			"Kafka consumer reset offset must be %q or %q",
+			"kafka consumer reset offset must be %q or %q",
 			kafkaConsumerResetEarliest,
 			kafkaConsumerResetLatest,
 		)
@@ -472,7 +472,7 @@ func redirectEventFromKafkaRecord(
 ) (RedirectEvent, error) {
 	if record == nil {
 		return RedirectEvent{}, fmt.Errorf(
-			"Kafka redirect event record must not be nil",
+			"kafka redirect event record must not be nil",
 		)
 	}
 
@@ -512,7 +512,7 @@ func redirectEventFromKafkaRecord(
 
 	if string(record.Key) != event.ShortCode {
 		return RedirectEvent{}, fmt.Errorf(
-			"Kafka record key %q does not match short code %q",
+			"kafka record key %q does not match short code %q",
 			string(record.Key),
 			event.ShortCode,
 		)

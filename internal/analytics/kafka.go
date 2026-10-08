@@ -57,17 +57,17 @@ func validateKafkaProducerConfig(
 	}
 
 	if len(brokers) == 0 {
-		return KafkaProducerConfig{}, fmt.Errorf("Kafka brokers must not be empty")
+		return KafkaProducerConfig{}, fmt.Errorf("kafka brokers must not be empty")
 	}
 
 	topic := strings.TrimSpace(config.Topic)
 	if topic == "" {
-		return KafkaProducerConfig{}, fmt.Errorf("Kafka topic must not be empty")
+		return KafkaProducerConfig{}, fmt.Errorf("kafka topic must not be empty")
 	}
 
 	clientID := strings.TrimSpace(config.ClientID)
 	if clientID == "" {
-		return KafkaProducerConfig{}, fmt.Errorf("Kafka client id must not be empty")
+		return KafkaProducerConfig{}, fmt.Errorf("kafka client id must not be empty")
 	}
 
 	return KafkaProducerConfig{
@@ -166,7 +166,7 @@ func kafkaRecordForRedirectEvent(
 ) (*kgo.Record, error) {
 	topic = strings.TrimSpace(topic)
 	if topic == "" {
-		return nil, fmt.Errorf("Kafka topic must not be empty")
+		return nil, fmt.Errorf("kafka topic must not be empty")
 	}
 
 	if strings.TrimSpace(event.EventID) == "" {

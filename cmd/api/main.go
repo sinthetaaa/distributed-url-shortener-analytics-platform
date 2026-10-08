@@ -100,7 +100,15 @@ func main() {
 		WriteTimeout:          50 * time.Millisecond,
 		ContextTimeoutEnabled: true,
 	})
-	defer redisClient.Close()
+	defer func() {
+		if err := redisClient.Close(); err != nil {
+			logger.Warn(
+				"failed to close redis client",
+				"error",
+				err,
+			)
+		}
+	}()
 
 	redisCtx, redisCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer redisCancel()

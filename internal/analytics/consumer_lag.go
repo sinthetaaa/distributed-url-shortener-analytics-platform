@@ -54,7 +54,7 @@ func (r *KafkaConsumerLagReader) Lag(
 	groupLag, ok := lags[r.groupID]
 	if !ok {
 		return 0, fmt.Errorf(
-			"Kafka consumer lag response missing group %q",
+			"kafka consumer lag response missing group %q",
 			r.groupID,
 		)
 	}
@@ -70,7 +70,7 @@ func (r *KafkaConsumerLagReader) Lag(
 	total := groupLag.Lag.Total()
 	if total < 0 {
 		return 0, fmt.Errorf(
-			"Kafka consumer lag for group %q is negative: %d",
+			"kafka consumer lag for group %q is negative: %d",
 			r.groupID,
 			total,
 		)
