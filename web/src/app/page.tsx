@@ -1,15 +1,25 @@
 import { LogoutButton } from "@/components/auth/logout-button";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { ShortenForm } from "@/components/links/shorten-form";
+
+import styles from "./page.module.css";
 
 export default function Home() {
   return (
     <ProtectedRoute>
-      <main className="foundation">
-        <div className="foundation__bar">
-          <p className="foundation__name">ShortScale</p>
+      <div className={styles.page}>
+        <header className={styles.header}>
+          <p className={styles.brand}>
+            ShortScale
+          </p>
+
           <LogoutButton />
-        </div>
-      </main>
+        </header>
+
+        <main className={styles.content}>
+          <ShortenForm />
+        </main>
+      </div>
     </ProtectedRoute>
   );
 }
