@@ -218,11 +218,27 @@ export function RecentLinks({
       {links === null && !loadError ? (
         <div
           className={styles.skeletonList}
-          aria-label="Loading recent links"
+          role="status"
+          aria-live="polite"
         >
-          <div className={styles.skeletonRow} />
-          <div className={styles.skeletonRow} />
-          <div className={styles.skeletonRow} />
+          <span className="sr-only">
+            Loading recent links.
+          </span>
+
+          <div
+            className={styles.skeletonRow}
+            aria-hidden="true"
+          />
+
+          <div
+            className={styles.skeletonRow}
+            aria-hidden="true"
+          />
+
+          <div
+            className={styles.skeletonRow}
+            aria-hidden="true"
+          />
         </div>
       ) : null}
 
@@ -237,6 +253,17 @@ export function RecentLinks({
           </p>
         </div>
       ) : null}
+
+      <div
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {copiedCode
+          ? `Short link ${copiedCode} copied to clipboard.`
+          : ""}
+      </div>
 
       {links && links.length > 0 ? (
         <ul className={styles.list}>

@@ -151,7 +151,8 @@ function AnalyticsChart({
         </title>
 
         <desc id="analytics-chart-description">
-          Daily redirect counts for the selected analytics window.
+          Visual chart of daily redirect counts for the selected analytics
+          window. A complete text table follows the chart.
         </desc>
 
         <line
@@ -207,6 +208,31 @@ function AnalyticsChart({
           </text>
         ) : null}
       </svg>
+
+      <table className="sr-only">
+        <caption>
+          Daily redirect counts for the last{" "}
+          {analytics.window.days} days
+        </caption>
+
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Redirects</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {analytics.daily.map((item) => (
+            <tr key={item.date}>
+              <th scope="row">
+                {item.date}
+              </th>
+              <td>{item.redirects}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -417,11 +443,27 @@ export function AnalyticsPage({
         {loadState === "loading" ? (
           <section
             className={styles.loading}
-            aria-label="Loading analytics"
+            role="status"
+            aria-live="polite"
           >
-            <div className={styles.loadingTitle} />
-            <div className={styles.loadingMetric} />
-            <div className={styles.loadingChart} />
+            <span className="sr-only">
+              Loading analytics.
+            </span>
+
+            <div
+              className={styles.loadingTitle}
+              aria-hidden="true"
+            />
+
+            <div
+              className={styles.loadingMetric}
+              aria-hidden="true"
+            />
+
+            <div
+              className={styles.loadingChart}
+              aria-hidden="true"
+            />
           </section>
         ) : null}
 
@@ -511,6 +553,7 @@ export function AnalyticsPage({
 
               <div
                 className={styles.rangeGroup}
+                role="group"
                 aria-label="Analytics time range"
               >
                 {RANGE_OPTIONS.map(
