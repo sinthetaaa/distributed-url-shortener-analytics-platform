@@ -22,10 +22,22 @@ func NewKafkaConsumerLagReader(
 		return nil, err
 	}
 
-	client, err := kgo.NewClient(
+	securityOptions, err := kafkaSecurityOptionsFromEnv()
+	if err != nil {
+		return nil, fmt.Errorf(
+			"load Kafka security configuration: %w",
+			err,
+		)
+	}
+
+	options := []kgo.Opt{
 		kgo.SeedBrokers(config.Brokers...),
-		kgo.ClientID(config.ClientID+"-lag-monitor"),
-	)
+		kgo.ClientID(config.ClientID + "-lag-monitor"),
+	}
+
+	options = append(options, securityOptions...)
+
+	client, err := kgo.NewClient(options...)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"create Kafka consumer lag client: %w",

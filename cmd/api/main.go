@@ -31,7 +31,6 @@ const (
 type config struct {
 	Port         string
 	DatabaseURL  string
-	RedisAddr    string
 	CookieSecure bool
 }
 
@@ -93,16 +92,17 @@ func main() {
 
 	logger.Info("database connection established")
 
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:                  cfg.RedisAddr,
-		MaxRetries:            -1,
-		DialerRetries:         1,
-		DialerRetryTimeout:    10 * time.Millisecond,
-		DialTimeout:           50 * time.Millisecond,
-		ReadTimeout:           50 * time.Millisecond,
-		WriteTimeout:          50 * time.Millisecond,
-		ContextTimeoutEnabled: true,
-	})
+	redisOptions, err := redisOptionsFromEnv()
+	if err != nil {
+		logger.Error(
+			"failed to load Redis configuration",
+			"error",
+			err,
+		)
+		os.Exit(1)
+	}
+
+	redisClient := redis.NewClient(redisOptions)
 	defer func() {
 		if err := redisClient.Close(); err != nil {
 			logger.Warn(
@@ -237,11 +237,6 @@ func loadConfig() (config, error) {
 		return config{}, fmt.Errorf("DATABASE_URL is required")
 	}
 
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		return config{}, fmt.Errorf("REDIS_ADDR is required")
-	}
-
 	cookieSecure := false
 
 	if raw := os.Getenv("AUTH_COOKIE_SECURE"); raw != "" {
@@ -259,7 +254,6 @@ func loadConfig() (config, error) {
 	return config{
 		Port:         port,
 		DatabaseURL:  databaseURL,
-		RedisAddr:    redisAddr,
 		CookieSecure: cookieSecure,
 	}, nil
 }

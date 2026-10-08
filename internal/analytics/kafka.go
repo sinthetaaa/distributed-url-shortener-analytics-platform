@@ -104,13 +104,25 @@ func NewKafkaRedirectEventProducer(
 		return nil, err
 	}
 
-	client, err := kgo.NewClient(
+	securityOptions, err := kafkaSecurityOptionsFromEnv()
+	if err != nil {
+		return nil, fmt.Errorf(
+			"load Kafka security configuration: %w",
+			err,
+		)
+	}
+
+	options := []kgo.Opt{
 		kgo.SeedBrokers(config.Brokers...),
 		kgo.ClientID(config.ClientID),
 		kgo.DefaultProduceTopic(config.Topic),
 		kgo.AllowIdempotentProduceCancellation(),
 		kgo.RecordPartitioner(kgo.StickyKeyPartitioner(nil)),
-	)
+	}
+
+	options = append(options, securityOptions...)
+
+	client, err := kgo.NewClient(options...)
 	if err != nil {
 		return nil, fmt.Errorf("create Kafka client: %w", err)
 	}

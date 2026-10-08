@@ -203,14 +203,26 @@ func NewKafkaRedirectEventConsumerWithMetrics(
 		resetOffset = kgo.NewOffset().AtEnd()
 	}
 
-	client, err := kgo.NewClient(
+	securityOptions, err := kafkaSecurityOptionsFromEnv()
+	if err != nil {
+		return nil, fmt.Errorf(
+			"load Kafka security configuration: %w",
+			err,
+		)
+	}
+
+	options := []kgo.Opt{
 		kgo.SeedBrokers(config.Brokers...),
 		kgo.ClientID(config.ClientID),
 		kgo.ConsumerGroup(config.GroupID),
 		kgo.ConsumeTopics(config.Topic),
 		kgo.ConsumeResetOffset(resetOffset),
 		kgo.DisableAutoCommit(),
-	)
+	}
+
+	options = append(options, securityOptions...)
+
+	client, err := kgo.NewClient(options...)
 	if err != nil {
 		return nil, fmt.Errorf("create Kafka consumer: %w", err)
 	}
