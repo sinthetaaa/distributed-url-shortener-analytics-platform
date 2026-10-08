@@ -38,6 +38,11 @@
   cursor: pointer;
 }
 
+.retry:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .error {
   margin: 16px 0 0;
   color: var(--color-error);
@@ -99,6 +104,10 @@
   line-height: 1.4;
 }
 
+.actionArea {
+  min-width: 142px;
+}
+
 .actions {
   display: flex;
   align-items: center;
@@ -130,6 +139,15 @@
 
 .actionButton:hover {
   color: var(--color-accent);
+}
+
+.actionError {
+  max-width: 210px;
+  margin: 7px 0 0;
+  color: var(--color-error);
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: right;
 }
 
 .empty {
@@ -202,7 +220,16 @@
     overflow-wrap: anywhere;
   }
 
+  .actionArea {
+    min-width: 0;
+  }
+
   .actions {
     justify-content: flex-start;
+  }
+
+  .actionError {
+    max-width: none;
+    text-align: left;
   }
 }

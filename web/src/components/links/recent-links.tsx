@@ -43,6 +43,17 @@ function formatCreatedAt(value: string) {
   }).format(date);
 }
 
+function listErrorMessage(caught: unknown) {
+  if (
+    caught instanceof APIError &&
+    caught.status === 0
+  ) {
+    return "Recent links are temporarily unavailable.";
+  }
+
+  return "Couldn’t load your recent links.";
+}
+
 export function RecentLinks({
   refreshVersion,
 }: RecentLinksProps) {
@@ -51,17 +62,30 @@ export function RecentLinks({
   const [links, setLinks] =
     useState<OwnedShortURL[] | null>(null);
 
-  const [error, setError] =
+  const [loadError, setLoadError] =
     useState<string | null>(null);
+
+  const [retrying, setRetrying] =
+    useState(false);
 
   const [copiedCode, setCopiedCode] =
     useState<string | null>(null);
 
-  const loadLinks = useCallback(async () => {
-    try {
-      const nextLinks = await listOwnedURLs(20);
+  const [copyErrorCode, setCopyErrorCode] =
+    useState<string | null>(null);
 
-      setError(null);
+  const loadLinks = useCallback(async () => {
+    if (retrying) {
+      return;
+    }
+
+    setRetrying(true);
+
+    try {
+      const nextLinks =
+        await listOwnedURLs(20);
+
+      setLoadError(null);
       setLinks(nextLinks);
     } catch (caught) {
       if (
@@ -74,21 +98,13 @@ export function RecentLinks({
         return;
       }
 
-      if (
-        caught instanceof APIError &&
-        caught.status === 0
-      ) {
-        setError(
-          "Recent links are temporarily unavailable.",
-        );
-        return;
-      }
-
-      setError(
-        "Couldn’t load your recent links.",
+      setLoadError(
+        listErrorMessage(caught),
       );
+    } finally {
+      setRetrying(false);
     }
-  }, [router]);
+  }, [retrying, router]);
 
   useEffect(() => {
     let active = true;
@@ -99,7 +115,7 @@ export function RecentLinks({
           return;
         }
 
-        setError(null);
+        setLoadError(null);
         setLinks(nextLinks);
       },
       (caught: unknown) => {
@@ -117,18 +133,8 @@ export function RecentLinks({
           return;
         }
 
-        if (
-          caught instanceof APIError &&
-          caught.status === 0
-        ) {
-          setError(
-            "Recent links are temporarily unavailable.",
-          );
-          return;
-        }
-
-        setError(
-          "Couldn’t load your recent links.",
+        setLoadError(
+          listErrorMessage(caught),
         );
       },
     );
@@ -141,6 +147,8 @@ export function RecentLinks({
   async function handleCopy(
     shortCode: string,
   ) {
+    setCopyErrorCode(null);
+
     try {
       await navigator.clipboard.writeText(
         publicShortURL(shortCode),
@@ -156,9 +164,8 @@ export function RecentLinks({
         );
       }, 1800);
     } catch {
-      setError(
-        "Couldn’t copy the short link.",
-      );
+      setCopiedCode(null);
+      setCopyErrorCode(shortCode);
     }
   }
 
@@ -167,6 +174,7 @@ export function RecentLinks({
       className={styles.section}
       id="recent-links"
       aria-labelledby="recent-links-title"
+      aria-busy={retrying}
     >
       <div className={styles.headingRow}>
         <div>
@@ -182,27 +190,32 @@ export function RecentLinks({
           </p>
         </div>
 
-        {error ? (
+        {loadError ? (
           <button
             className={styles.retry}
             type="button"
-            onClick={() => void loadLinks()}
+            disabled={retrying}
+            onClick={() =>
+              void loadLinks()
+            }
           >
-            Retry
+            {retrying
+              ? "Retrying…"
+              : "Retry"}
           </button>
         ) : null}
       </div>
 
-      {error ? (
+      {loadError ? (
         <p
           className={styles.error}
           role="alert"
         >
-          {error}
+          {loadError}
         </p>
       ) : null}
 
-      {links === null && !error ? (
+      {links === null && !loadError ? (
         <div
           className={styles.skeletonList}
           aria-label="Loading recent links"
@@ -213,9 +226,12 @@ export function RecentLinks({
         </div>
       ) : null}
 
-      {links && links.length === 0 ? (
+      {links &&
+      links.length === 0 &&
+      !loadError ? (
         <div className={styles.empty}>
           <p>No links yet.</p>
+
           <p>
             Your new short links will appear here.
           </p>
@@ -228,6 +244,10 @@ export function RecentLinks({
             const shortURL = publicShortURL(
               link.short_code,
             );
+
+            const copyFailed =
+              copyErrorCode ===
+              link.short_code;
 
             return (
               <li
@@ -259,30 +279,43 @@ export function RecentLinks({
                   </time>
                 </div>
 
-                <div className={styles.actions}>
-                  <Link
-                    className={styles.actionLink}
-                    href={`/links/${encodeURIComponent(
-                      link.short_code,
-                    )}/analytics`}
-                  >
-                    Analytics
-                  </Link>
-
-                  <button
-                    className={styles.actionButton}
-                    type="button"
-                    onClick={() =>
-                      void handleCopy(
+                <div className={styles.actionArea}>
+                  <div className={styles.actions}>
+                    <Link
+                      className={styles.actionLink}
+                      href={`/links/${encodeURIComponent(
                         link.short_code,
-                      )
-                    }
-                  >
-                    {copiedCode ===
-                    link.short_code
-                      ? "Copied"
-                      : "Copy"}
-                  </button>
+                      )}/analytics`}
+                    >
+                      Analytics
+                    </Link>
+
+                    <button
+                      className={styles.actionButton}
+                      type="button"
+                      onClick={() =>
+                        void handleCopy(
+                          link.short_code,
+                        )
+                      }
+                    >
+                      {copiedCode ===
+                      link.short_code
+                        ? "Copied"
+                        : "Copy"}
+                    </button>
+                  </div>
+
+                  {copyFailed ? (
+                    <p
+                      className={styles.actionError}
+                      role="alert"
+                    >
+                      Copy failed. Select the
+                      short URL and copy it
+                      manually.
+                    </p>
+                  ) : null}
                 </div>
               </li>
             );

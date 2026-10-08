@@ -113,6 +113,7 @@ export function ShortenForm({
       return;
     }
 
+    setResult(null);
     setPending(true);
 
     try {
