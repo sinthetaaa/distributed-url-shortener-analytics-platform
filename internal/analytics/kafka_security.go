@@ -48,7 +48,7 @@ func kafkaSecurityConfigFromEnv() (kafkaSecurityConfig, error) {
 
 	if hasUsername && !tlsEnabled {
 		return kafkaSecurityConfig{}, fmt.Errorf(
-			"Kafka SASL credentials require KAFKA_TLS_ENABLED=true",
+			"kafka SASL credentials require KAFKA_TLS_ENABLED=true",
 		)
 	}
 
