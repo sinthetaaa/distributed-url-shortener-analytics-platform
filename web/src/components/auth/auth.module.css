@@ -205,3 +205,40 @@
     min-height: 50px;
   }
 }
+
+.formError,
+.notice {
+  margin: 0;
+  border-left: 2px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
+  padding-left: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.formError {
+  border-left-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.notice {
+  margin-bottom: 24px;
+  border-left-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.input:disabled,
+.passwordToggle:disabled,
+.primaryButton:disabled {
+  cursor: not-allowed;
+}
+
+.input:disabled {
+  opacity: 0.72;
+}
+
+.primaryButton:disabled {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  opacity: 0.68;
+}
