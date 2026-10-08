@@ -1,0 +1,207 @@
+.page {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px var(--page-gutter-desktop);
+}
+
+.shell {
+  width: min(100%, 400px);
+  transform: translateY(-3vh);
+}
+
+.brand {
+  margin-bottom: 48px;
+  color: var(--color-text-primary);
+  font-family: var(--font-display);
+  font-size: 28px;
+  line-height: 1;
+  text-align: center;
+}
+
+.header {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(38px, 4vw, 44px);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.description {
+  max-width: 340px;
+  margin: 12px auto 0;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.form {
+  display: grid;
+  gap: 20px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.label {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.input {
+  width: 100%;
+  height: 48px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  padding: 0 14px;
+  outline: none;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.input:hover {
+  border-color: var(--color-border-strong);
+}
+
+.input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--color-error);
+}
+
+.input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 1px var(--color-error);
+}
+
+.passwordField {
+  position: relative;
+}
+
+.passwordInput {
+  padding-right: 64px;
+}
+
+.passwordToggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  padding: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.passwordToggle:hover {
+  color: var(--color-text-primary);
+}
+
+.help,
+.error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.help {
+  color: var(--color-text-secondary);
+}
+
+.error {
+  color: var(--color-error);
+}
+
+.primaryButton {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 4px;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-control);
+  background: var(--color-accent);
+  color: var(--color-surface);
+  padding: 11px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+
+.primaryButton:hover {
+  border-color: var(--color-accent-hover);
+  background: var(--color-accent-hover);
+}
+
+.footer {
+  margin: 28px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.footerLink {
+  color: var(--color-text-primary);
+  font-weight: 500;
+  text-underline-offset: 3px;
+}
+
+.footerLink:hover {
+  color: var(--color-accent);
+}
+
+@media (max-width: 768px) {
+  .page {
+    min-height: 100svh;
+    align-items: center;
+    padding:
+      32px
+      var(--page-gutter-mobile);
+  }
+
+  .shell {
+    width: 100%;
+    max-width: 420px;
+    transform: none;
+  }
+
+  .brand {
+    margin-bottom: 40px;
+  }
+
+  .header {
+    margin-bottom: 28px;
+  }
+
+  .title {
+    font-size: 38px;
+  }
+
+  .input,
+  .primaryButton {
+    min-height: 50px;
+  }
+}
