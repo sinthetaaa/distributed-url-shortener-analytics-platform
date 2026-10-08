@@ -13,13 +13,18 @@ import (
 
 const getDailyRedirectCounts = `-- name: GetDailyRedirectCounts :many
 SELECT
-    (occurred_at AT TIME ZONE 'UTC')::date AS day,
-    COUNT(*)::bigint AS redirects
-FROM redirect_events
+    day,
+    redirects
+FROM redirect_daily_counts
 WHERE short_code = $1
-  AND occurred_at >= $2
-  AND occurred_at < $3
-GROUP BY day
+  AND day >= (
+      $2::timestamptz
+      AT TIME ZONE 'UTC'
+  )::date
+  AND day < (
+      $3::timestamptz
+      AT TIME ZONE 'UTC'
+  )::date
 ORDER BY day
 `
 
@@ -101,14 +106,37 @@ func (q *Queries) GetRedirectEventByID(ctx context.Context, eventID string) (Red
 }
 
 const insertRedirectEvent = `-- name: InsertRedirectEvent :execrows
-INSERT INTO redirect_events (
-    event_id,
-    event_type,
-    short_code,
-    occurred_at
+WITH inserted AS (
+    INSERT INTO redirect_events (
+        event_id,
+        event_type,
+        short_code,
+        occurred_at
+    )
+    VALUES ($1, $2, $3, $4)
+    ON CONFLICT (event_id) DO NOTHING
+    RETURNING
+        short_code,
+        occurred_at
 )
-VALUES ($1, $2, $3, $4)
-ON CONFLICT (event_id) DO NOTHING
+INSERT INTO redirect_daily_counts (
+    short_code,
+    day,
+    redirects
+)
+SELECT
+    short_code,
+    (occurred_at AT TIME ZONE 'UTC')::date,
+    1
+FROM inserted
+ON CONFLICT (
+    short_code,
+    day
+)
+DO UPDATE SET
+    redirects =
+        redirect_daily_counts.redirects
+        + EXCLUDED.redirects
 `
 
 type InsertRedirectEventParams struct {

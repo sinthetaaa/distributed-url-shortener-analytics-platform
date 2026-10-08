@@ -8,6 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type RedirectDailyCount struct {
+	ShortCode string      `json:"short_code"`
+	Day       pgtype.Date `json:"day"`
+	Redirects int64       `json:"redirects"`
+}
+
 type RedirectEvent struct {
 	EventID    string             `json:"event_id"`
 	EventType  string             `json:"event_type"`

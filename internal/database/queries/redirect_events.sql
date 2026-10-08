@@ -1,12 +1,35 @@
 -- name: InsertRedirectEvent :execrows
-INSERT INTO redirect_events (
-    event_id,
-    event_type,
-    short_code,
-    occurred_at
+WITH inserted AS (
+    INSERT INTO redirect_events (
+        event_id,
+        event_type,
+        short_code,
+        occurred_at
+    )
+    VALUES ($1, $2, $3, $4)
+    ON CONFLICT (event_id) DO NOTHING
+    RETURNING
+        short_code,
+        occurred_at
 )
-VALUES ($1, $2, $3, $4)
-ON CONFLICT (event_id) DO NOTHING;
+INSERT INTO redirect_daily_counts (
+    short_code,
+    day,
+    redirects
+)
+SELECT
+    short_code,
+    (occurred_at AT TIME ZONE 'UTC')::date,
+    1
+FROM inserted
+ON CONFLICT (
+    short_code,
+    day
+)
+DO UPDATE SET
+    redirects =
+        redirect_daily_counts.redirects
+        + EXCLUDED.redirects;
 
 -- name: GetRedirectEventByID :one
 SELECT
@@ -28,11 +51,16 @@ WHERE short_code = $1;
 
 -- name: GetDailyRedirectCounts :many
 SELECT
-    (occurred_at AT TIME ZONE 'UTC')::date AS day,
-    COUNT(*)::bigint AS redirects
-FROM redirect_events
+    day,
+    redirects
+FROM redirect_daily_counts
 WHERE short_code = sqlc.arg(short_code)
-  AND occurred_at >= sqlc.arg(start_at)
-  AND occurred_at < sqlc.arg(end_at)
-GROUP BY day
+  AND day >= (
+      sqlc.arg(start_at)::timestamptz
+      AT TIME ZONE 'UTC'
+  )::date
+  AND day < (
+      sqlc.arg(end_at)::timestamptz
+      AT TIME ZONE 'UTC'
+  )::date
 ORDER BY day;
