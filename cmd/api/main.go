@@ -8,9 +8,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
+	authpkg "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/auth"
 	urlcache "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/cache"
 	database "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/database/generated"
 	"github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/observability"
@@ -27,9 +29,10 @@ const (
 )
 
 type config struct {
-	Port        string
-	DatabaseURL string
-	RedisAddr   string
+	Port         string
+	DatabaseURL  string
+	RedisAddr    string
+	CookieSecure bool
 }
 
 type databasePinger interface {
@@ -130,6 +133,8 @@ func main() {
 	addr := ":" + cfg.Port
 
 	queries := database.New(pool)
+	authService := authpkg.NewService(queries)
+
 	cache := newObservedRedirectCache(
 		urlcache.NewURLCache(redisClient, urlCacheTTL),
 		metrics,
@@ -144,7 +149,7 @@ func main() {
 		metrics,
 	)
 
-	router := newRouterWithDependenciesAndMetrics(
+	router := newRouterWithDependenciesMetricsAndAuth(
 		logger,
 		pool,
 		queries,
@@ -153,6 +158,8 @@ func main() {
 		redirectRecorder,
 		queries,
 		metrics,
+		authService,
+		cfg.CookieSecure,
 	)
 
 	tracedHandler := newTracedHTTPHandler(router)
@@ -235,10 +242,25 @@ func loadConfig() (config, error) {
 		return config{}, fmt.Errorf("REDIS_ADDR is required")
 	}
 
+	cookieSecure := false
+
+	if raw := os.Getenv("AUTH_COOKIE_SECURE"); raw != "" {
+		parsed, err := strconv.ParseBool(raw)
+		if err != nil {
+			return config{}, fmt.Errorf(
+				"AUTH_COOKIE_SECURE must be true or false: %w",
+				err,
+			)
+		}
+
+		cookieSecure = parsed
+	}
+
 	return config{
-		Port:        port,
-		DatabaseURL: databaseURL,
-		RedisAddr:   redisAddr,
+		Port:         port,
+		DatabaseURL:  databaseURL,
+		RedisAddr:    redisAddr,
+		CookieSecure: cookieSecure,
 	}, nil
 }
 
@@ -327,6 +349,32 @@ func newRouterWithDependenciesAndMetrics(
 	analyticsReader redirectAnalyticsReader,
 	metrics *observability.Metrics,
 ) http.Handler {
+	return newRouterWithDependenciesMetricsAndAuth(
+		logger,
+		database,
+		creator,
+		finder,
+		createURLLimiter,
+		redirectRecorder,
+		analyticsReader,
+		metrics,
+		nil,
+		false,
+	)
+}
+
+func newRouterWithDependenciesMetricsAndAuth(
+	logger *slog.Logger,
+	database databasePinger,
+	creator urlCreator,
+	finder urlFinder,
+	createURLLimiter requestRateLimiter,
+	redirectRecorder redirectEventRecorder,
+	analyticsReader redirectAnalyticsReader,
+	metrics *observability.Metrics,
+	authService authenticationService,
+	cookieSecure bool,
+) http.Handler {
 	router := chi.NewRouter()
 
 	if metrics != nil {
@@ -337,6 +385,42 @@ func newRouterWithDependenciesAndMetrics(
 	router.Get("/health/live", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONStatus(w, logger, http.StatusOK, "ok")
 	})
+
+	if authService != nil {
+		router.Post(
+			"/api/v1/auth/register",
+			registerHandler(logger, authService),
+		)
+
+		router.Post(
+			"/api/v1/auth/login",
+			loginHandler(
+				logger,
+				authService,
+				cookieSecure,
+			),
+		)
+
+		router.Post(
+			"/api/v1/auth/logout",
+			logoutHandler(
+				logger,
+				authService,
+				cookieSecure,
+			),
+		)
+
+		router.With(
+			authenticationMiddleware(
+				logger,
+				authService,
+				cookieSecure,
+			),
+		).Get(
+			"/api/v1/auth/me",
+			meHandler(logger),
+		)
+	}
 
 	router.With(
 		rateLimitMiddleware(logger, createURLLimiter),
