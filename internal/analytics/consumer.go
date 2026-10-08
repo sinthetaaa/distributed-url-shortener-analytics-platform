@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/observability"
 
@@ -26,6 +27,9 @@ const (
 	consumerFailureStageDecode  = "decode"
 	consumerFailureStageProcess = "process"
 	consumerFailureStageCommit  = "commit"
+
+	kafkaPollRetryInitialDelay = 100 * time.Millisecond
+	kafkaPollRetryMaxDelay     = 2 * time.Second
 )
 
 type RedirectEventProcessor interface {
@@ -131,8 +135,45 @@ func validateKafkaConsumerConfig(
 	}, nil
 }
 
+type kafkaConsumerClient interface {
+	Poll(context.Context) ([]*kgo.Record, error)
+	Commit(context.Context, *kgo.Record) error
+	Close()
+}
+
+type franzKafkaConsumerClient struct {
+	client *kgo.Client
+}
+
+func (c *franzKafkaConsumerClient) Poll(
+	ctx context.Context,
+) ([]*kgo.Record, error) {
+	fetches := c.client.PollRecords(ctx, 1)
+
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	if errs := fetches.Errors(); len(errs) > 0 {
+		return nil, fmt.Errorf("%v", errs)
+	}
+
+	return fetches.Records(), nil
+}
+
+func (c *franzKafkaConsumerClient) Commit(
+	ctx context.Context,
+	record *kgo.Record,
+) error {
+	return c.client.CommitRecords(ctx, record)
+}
+
+func (c *franzKafkaConsumerClient) Close() {
+	c.client.Close()
+}
+
 type KafkaRedirectEventConsumer struct {
-	client  *kgo.Client
+	client  kafkaConsumerClient
 	metrics *observability.ConsumerMetrics
 }
 
@@ -172,7 +213,9 @@ func NewKafkaRedirectEventConsumerWithMetrics(
 	}
 
 	return &KafkaRedirectEventConsumer{
-		client:  client,
+		client: &franzKafkaConsumerClient{
+			client: client,
+		},
 		metrics: metrics,
 	}, nil
 }
@@ -185,20 +228,34 @@ func (c *KafkaRedirectEventConsumer) Run(
 		return fmt.Errorf("redirect event processor must not be nil")
 	}
 
+	pollRetryDelay := kafkaPollRetryInitialDelay
+
 	for {
-		fetches := c.client.PollRecords(ctx, 1)
+		records, err := c.client.Poll(ctx)
 
 		if ctx.Err() != nil {
 			return nil
 		}
 
-		if errs := fetches.Errors(); len(errs) > 0 {
+		if err != nil {
 			c.recordFailure(consumerFailureStagePoll)
 
-			return fmt.Errorf("poll Kafka redirect events: %v", errs)
+			if !waitForKafkaPollRetry(
+				ctx,
+				pollRetryDelay,
+			) {
+				return nil
+			}
+
+			pollRetryDelay = nextKafkaPollRetryDelay(
+				pollRetryDelay,
+			)
+
+			continue
 		}
 
-		records := fetches.Records()
+		pollRetryDelay = kafkaPollRetryInitialDelay
+
 		if len(records) == 0 {
 			continue
 		}
@@ -214,11 +271,48 @@ func (c *KafkaRedirectEventConsumer) Run(
 			}
 
 			c.recordFailure(stage)
+
 			return err
 		}
 
 		c.recordProcessed()
 	}
+}
+
+func waitForKafkaPollRetry(
+	ctx context.Context,
+	delay time.Duration,
+) bool {
+	if delay <= 0 {
+		delay = kafkaPollRetryInitialDelay
+	}
+
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return false
+
+	case <-timer.C:
+		return true
+	}
+}
+
+func nextKafkaPollRetryDelay(
+	current time.Duration,
+) time.Duration {
+	if current <= 0 {
+		return kafkaPollRetryInitialDelay
+	}
+
+	next := current * 2
+
+	if next > kafkaPollRetryMaxDelay {
+		return kafkaPollRetryMaxDelay
+	}
+
+	return next
 }
 
 func (c *KafkaRedirectEventConsumer) processRecord(
@@ -276,7 +370,7 @@ func (c *KafkaRedirectEventConsumer) processRecord(
 		return consumerFailureStageProcess, err
 	}
 
-	if err := c.client.CommitRecords(processCtx, record); err != nil {
+	if err := c.client.Commit(processCtx, record); err != nil {
 		if ctx.Err() != nil {
 			return "", ctx.Err()
 		}
