@@ -5,6 +5,17 @@ export type CreatedShortURL = {
   original_url: string;
 };
 
+export type OwnedShortURL = {
+  short_code: string;
+  original_url: string;
+  created_at: string;
+  expires_at: string | null;
+};
+
+type ListOwnedURLsResponse = {
+  urls: OwnedShortURL[];
+};
+
 type APIErrorBody = {
   error?: string;
 };
@@ -41,22 +52,20 @@ async function parseURLAPIError(
   );
 }
 
-export async function createShortURL(
-  originalURL: string,
-): Promise<CreatedShortURL> {
+async function urlRequest(
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
   let response: Response;
 
   try {
-    response = await fetch("/api/v1/urls", {
-      method: "POST",
+    response = await fetch(path, {
+      ...init,
       credentials: "same-origin",
       headers: {
+        ...init?.headers,
         Accept: "application/json",
-        "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        url: originalURL,
-      }),
     });
   } catch {
     throw new APIError(
@@ -69,5 +78,38 @@ export async function createShortURL(
     return parseURLAPIError(response);
   }
 
+  return response;
+}
+
+export async function createShortURL(
+  originalURL: string,
+): Promise<CreatedShortURL> {
+  const response = await urlRequest("/api/v1/urls", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      url: originalURL,
+    }),
+  });
+
   return (await response.json()) as CreatedShortURL;
+}
+
+export async function listOwnedURLs(
+  limit = 20,
+): Promise<OwnedShortURL[]> {
+  const response = await urlRequest(
+    `/api/v1/urls?limit=${limit}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    },
+  );
+
+  const body =
+    (await response.json()) as ListOwnedURLsResponse;
+
+  return body.urls;
 }

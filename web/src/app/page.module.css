@@ -18,10 +18,28 @@
 }
 
 .brand {
-  margin: 0;
+  color: var(--color-text-primary);
   font-family: var(--font-display);
   font-size: 26px;
   line-height: 1;
+  text-decoration: none;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.navLink {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.navLink:hover {
+  color: var(--color-accent);
 }
 
 .content {
@@ -39,9 +57,14 @@
 
   .header {
     min-height: 64px;
+    gap: 18px;
   }
 
   .brand {
     font-size: 24px;
+  }
+
+  .nav {
+    gap: 18px;
   }
 }

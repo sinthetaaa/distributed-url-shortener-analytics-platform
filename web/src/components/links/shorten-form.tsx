@@ -48,7 +48,13 @@ function getRateLimitMessage(
   return "Too many links created. Try again shortly.";
 }
 
-export function ShortenForm() {
+type ShortenFormProps = {
+  onCreated?: () => void;
+};
+
+export function ShortenForm({
+  onCreated,
+}: ShortenFormProps) {
   const router = useRouter();
 
   const [url, setURL] = useState("");
@@ -115,6 +121,7 @@ export function ShortenForm() {
       );
 
       setResult(created);
+      onCreated?.();
     } catch (caught) {
       if (!(caught instanceof APIError)) {
         setFormError(
