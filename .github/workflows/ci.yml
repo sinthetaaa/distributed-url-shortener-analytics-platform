@@ -159,6 +159,56 @@ jobs:
           goose -dir migrations postgres "$DATABASE_URL" up
           goose -dir migrations postgres "$DATABASE_URL" status
 
+  product-integration:
+    name: Product integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: shortscale_product_ci
+          POSTGRES_USER: shortscale
+          POSTGRES_PASSWORD: shortscale
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U shortscale -d shortscale_product_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install Goose
+        run: go install github.com/pressly/goose/v3/cmd/goose@v3.28.0
+
+      - name: Apply database migrations
+        env:
+          DATABASE_URL: postgres://shortscale:shortscale@localhost:5432/shortscale_product_ci?sslmode=disable
+        run: goose -dir migrations postgres "$DATABASE_URL" up
+
+      - name: Run backend product integration flow
+        env:
+          SHORTSCALE_TEST_DATABASE_URL: postgres://shortscale:shortscale@localhost:5432/shortscale_product_ci?sslmode=disable
+        run: |
+          go test ./cmd/api             -run '^TestBackendProductFlow$'             -count=1             -v
+
+      - name: Run backend product integration race check
+        env:
+          SHORTSCALE_TEST_DATABASE_URL: postgres://shortscale:shortscale@localhost:5432/shortscale_product_ci?sslmode=disable
+        run: |
+          CGO_ENABLED=1 go test -race ./cmd/api             -run '^TestBackendProductFlow$'             -count=1
+
   containers:
     name: Containers
     runs-on: ubuntu-latest
