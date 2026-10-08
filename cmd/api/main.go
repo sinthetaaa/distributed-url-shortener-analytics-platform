@@ -475,10 +475,40 @@ func newRouterWithDependenciesMetricsAndAuth(
 	}
 
 	if analyticsReader != nil {
-		router.Get(
-			"/api/v1/urls/{shortCode}/analytics",
-			redirectAnalyticsHandler(logger, analyticsReader),
-		)
+		if authService != nil {
+			ownerFinder, ok := analyticsReader.(userURLFinder)
+			if !ok {
+				panic(
+					"authenticated analytics requires a user URL finder",
+				)
+			}
+
+			router.With(
+				authenticationMiddleware(
+					logger,
+					authService,
+					cookieSecure,
+				),
+				analyticsOwnershipMiddleware(
+					logger,
+					ownerFinder,
+				),
+			).Get(
+				"/api/v1/urls/{shortCode}/analytics",
+				redirectAnalyticsHandler(
+					logger,
+					analyticsReader,
+				),
+			)
+		} else {
+			router.Get(
+				"/api/v1/urls/{shortCode}/analytics",
+				redirectAnalyticsHandler(
+					logger,
+					analyticsReader,
+				),
+			)
+		}
 	}
 
 	router.Get("/health/ready", func(w http.ResponseWriter, r *http.Request) {

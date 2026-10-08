@@ -21,6 +21,13 @@ const (
 	maxAnalyticsDays     = 90
 )
 
+type userURLFinder interface {
+	GetURLByShortCodeForUser(
+		context.Context,
+		database.GetURLByShortCodeForUserParams,
+	) (database.Url, error)
+}
+
 type redirectAnalyticsReader interface {
 	GetURLByShortCode(context.Context, string) (database.Url, error)
 	GetRedirectAnalyticsSummary(
@@ -52,6 +59,76 @@ type redirectAnalyticsWindowResponse struct {
 type dailyRedirectCountResponse struct {
 	Date      string `json:"date"`
 	Redirects int64  `json:"redirects"`
+}
+
+func analyticsOwnershipMiddleware(
+	logger *slog.Logger,
+	finder userURLFinder,
+) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				user, ok := authenticatedUserFromContext(r.Context())
+				if !ok {
+					logger.Error(
+						"authenticated user missing from analytics context",
+					)
+
+					writeJSONError(
+						w,
+						logger,
+						http.StatusInternalServerError,
+						"internal server error",
+					)
+					return
+				}
+
+				shortCode := chi.URLParam(r, "shortCode")
+
+				_, err := finder.GetURLByShortCodeForUser(
+					r.Context(),
+					database.GetURLByShortCodeForUserParams{
+						ShortCode: shortCode,
+						UserID: pgtype.Int8{
+							Int64: user.ID,
+							Valid: true,
+						},
+					},
+				)
+				if err != nil {
+					if errors.Is(err, pgx.ErrNoRows) {
+						writeJSONError(
+							w,
+							logger,
+							http.StatusNotFound,
+							"short URL not found",
+						)
+						return
+					}
+
+					logger.Error(
+						"failed to authorize analytics access",
+						"short_code",
+						shortCode,
+						"user_id",
+						user.ID,
+						"error",
+						err,
+					)
+
+					writeJSONError(
+						w,
+						logger,
+						http.StatusInternalServerError,
+						"internal server error",
+					)
+					return
+				}
+
+				next.ServeHTTP(w, r)
+			},
+		)
+	}
 }
 
 func redirectAnalyticsHandler(
