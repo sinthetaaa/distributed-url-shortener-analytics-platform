@@ -30,6 +30,9 @@ const (
 
 	kafkaPollRetryInitialDelay = 100 * time.Millisecond
 	kafkaPollRetryMaxDelay     = 2 * time.Second
+
+	kafkaProcessRetryInitialDelay = 100 * time.Millisecond
+	kafkaProcessRetryMaxDelay     = 2 * time.Second
 )
 
 type RedirectEventProcessor interface {
@@ -260,22 +263,40 @@ func (c *KafkaRedirectEventConsumer) Run(
 			continue
 		}
 
-		stage, err := c.processRecord(
-			ctx,
-			processor,
-			records[0],
-		)
-		if err != nil {
+		processRetryDelay := kafkaProcessRetryInitialDelay
+
+		for {
+			stage, err := c.processRecord(
+				ctx,
+				processor,
+				records[0],
+			)
+			if err == nil {
+				c.recordProcessed()
+				break
+			}
+
 			if ctx.Err() != nil {
 				return nil
 			}
 
 			c.recordFailure(stage)
 
-			return err
-		}
+			if stage != consumerFailureStageProcess {
+				return err
+			}
 
-		c.recordProcessed()
+			if !waitForKafkaProcessRetry(
+				ctx,
+				processRetryDelay,
+			) {
+				return nil
+			}
+
+			processRetryDelay = nextKafkaProcessRetryDelay(
+				processRetryDelay,
+			)
+		}
 	}
 }
 
@@ -310,6 +331,42 @@ func nextKafkaPollRetryDelay(
 
 	if next > kafkaPollRetryMaxDelay {
 		return kafkaPollRetryMaxDelay
+	}
+
+	return next
+}
+
+func waitForKafkaProcessRetry(
+	ctx context.Context,
+	delay time.Duration,
+) bool {
+	if delay <= 0 {
+		delay = kafkaProcessRetryInitialDelay
+	}
+
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return false
+
+	case <-timer.C:
+		return true
+	}
+}
+
+func nextKafkaProcessRetryDelay(
+	current time.Duration,
+) time.Duration {
+	if current <= 0 {
+		return kafkaProcessRetryInitialDelay
+	}
+
+	next := current * 2
+
+	if next > kafkaProcessRetryMaxDelay {
+		return kafkaProcessRetryMaxDelay
 	}
 
 	return next
