@@ -14,7 +14,7 @@ The system began with the smallest useful architecture:
 Client → Go API → PostgreSQL
 ```
 
-It has since evolved to include Redis caching, horizontal API scaling behind Nginx, distributed rate limiting, Kafka-based asynchronous redirect analytics, Prometheus metrics, Grafana dashboards, distributed OpenTelemetry tracing, and measured resilience behavior under infrastructure and process failures.
+It has since evolved to include Redis caching, horizontal API scaling behind Nginx, distributed rate limiting, Kafka-based asynchronous redirect analytics, pre-aggregated analytics, Prometheus metrics, Grafana dashboards, distributed OpenTelemetry tracing, measured resilience behavior, and evidence-based database scaling decisions.
 
 ## Current Capabilities
 
@@ -25,8 +25,11 @@ It has since evolved to include Redis caching, horizontal API scaling behind Ngi
 - horizontal API scaling behind Nginx
 - distributed rate limiting
 - asynchronous redirect analytics through Kafka
-- analytics aggregation API
 - bounded local analytics queues
+- raw redirect-event persistence with global event-id idempotency
+- atomic daily analytics pre-aggregation
+- optimized lifetime analytics summaries
+- analytics aggregation API
 - Kafka consumer lag and persistence observability
 - transient Kafka polling retries with bounded exponential backoff
 - transient analytics persistence retries without prematurely committing Kafka offsets
@@ -35,7 +38,7 @@ It has since evolved to include Redis caching, horizontal API scaling behind Ngi
 - liveness and PostgreSQL-backed readiness endpoints
 - graceful API and analytics-consumer shutdown behavior
 - explicit container shutdown grace periods
-- runtime failure, recovery, and load experiments
+- measured failure, recovery, load, database-growth, partitioning, and sharding experiments
 - automated Go tests and regression coverage
 
 ## Current Stack
@@ -71,9 +74,68 @@ V5: API + Consumer → Prometheus → Grafana
 
 V6: Failure-tested runtime with circuit breaking, bounded degradation,
     durable Kafka recovery, dependency retries, and graceful shutdown
+
+V7: Raw analytics events + compact daily rollups
+    → hot analytics reads no longer repeatedly scan raw event history
 ```
 
 Each major stage is validated with tests, runtime experiments, measured behavior, and failure analysis before the next architectural change.
+
+## Analytics Storage Model
+
+ShortScale retains raw redirect events while maintaining a compact daily read model.
+
+```text
+Kafka redirect event
+        ↓
+Analytics consumer
+        ↓
+Atomic PostgreSQL statement
+        ├─ insert raw redirect event
+        └─ increment daily rollup only for a newly inserted event
+```
+
+This preserves raw history and event-level idempotency while making common analytics reads inexpensive.
+
+The API uses:
+
+```text
+daily/window counts
+→ redirect_daily_counts
+
+lifetime total
+→ SUM(daily rollups)
+
+first/last redirect
+→ existing (short_code, occurred_at) index
+```
+
+Phase 13 benchmarks showed approximately a **2,500× reduction** for the benchmarked hot daily query after pre-aggregation and approximately a **100× reduction** for the hot lifetime-summary query after its rewrite.
+
+## Database Scaling Decisions
+
+ShortScale does not currently use a PostgreSQL read replica, table partitioning, or application-level sharding.
+
+Those are intentional measured decisions rather than missing features.
+
+```text
+Read replica
+→ not justified after analytics query optimization removed most read pressure
+
+Time partitioning
+→ useful for future retention
+→ currently complicates global event-id idempotency
+
+Short-code sharding
+→ preserves analytics locality
+→ fails under hot-key skew
+
+Event-ID sharding
+→ balances writes
+→ forces per-short-code analytics to fan out across shards
+```
+
+See [Database Scaling & Distributed-System Analysis](docs/database-scaling.md) for the complete benchmark evidence and future trigger points.
 
 ## Failure Model
 
@@ -105,29 +167,32 @@ See [Failure Engineering & Resilience](docs/resilience.md) for the full experime
 
 ## Project Status
 
-**Phase 12 — Failure Engineering & Resilience: complete**
+**Phase 13 — Database Scaling & Distributed-System Analysis: complete**
 
-Completed through Phase 12:
+Completed through Phase 13:
 
-- Redis outage containment through PostgreSQL fallback and circuit breaking
-- API replica crash recovery behind Nginx
-- bounded analytics degradation during Kafka failure
-- Kafka poll retry recovery without consumer termination
-- durable analytics backlog during consumer crashes
-- PostgreSQL outage semantics for cached and uncached traffic
-- persistence retries that preserve uncommitted Kafka records
-- zero-loss Kafka backlog recovery in tested consumer and PostgreSQL outage scenarios
-- graceful API SIGTERM with asynchronous analytics drain
-- graceful consumer SIGTERM with uncommitted Kafka work preserved
-- explicit Docker Compose shutdown grace periods
-- Prometheus, Grafana, OpenTelemetry Collector, and Tempo observability across these behaviors
+- PostgreSQL baseline and query-plan analysis
+- controlled analytics dataset growth through one million events
+- hot-key and selective-query scaling analysis
+- index/storage trade-off benchmarking
+- exact daily analytics pre-aggregation
+- historical rollup backfill
+- atomic duplicate-safe raw-event + rollup persistence
+- optimized lifetime analytics summary
+- mixed read/write workload analysis
+- evidence-based decision not to deploy a read replica yet
+- time-partitioning retention benchmark
+- explicit global-idempotency trade-off analysis for partitioning
+- short-code vs event-ID sharding distribution analysis
+- evidence-based decision not to shard at current scale
 
-**Next:** Phase 13 — Database Scaling & Distributed-System Analysis.
+**Next:** Phase 14 — Production Hardening & CI.
 
 ## Documentation
 
 Detailed architecture, engineering decisions, benchmarks, observability, and failure experiments are maintained under [`docs/`](docs/).
 
+- [Database scaling benchmarks and distributed-system trade-offs](docs/database-scaling.md)
 - [Failure engineering, resilience matrix, and Phase 12 experiments](docs/resilience.md)
 - [Observability architecture, metrics, tracing, and Phase 11 experiments](docs/observability.md)
 - [Architecture notes](docs/architecture/)
