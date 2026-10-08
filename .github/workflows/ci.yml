@@ -87,3 +87,106 @@ jobs:
 
       - name: Build all packages
         run: go build ./...
+
+  sqlc:
+    name: sqlc determinism
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install sqlc
+        run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
+
+      - name: Verify generated database code
+        run: |
+          sqlc generate
+
+          if [ -n "$(git status --porcelain -- internal/database/generated)" ]; then
+            git status --short -- internal/database/generated
+            git diff -- internal/database/generated
+            exit 1
+          fi
+
+  migrations:
+    name: Migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: shortscale_ci
+          POSTGRES_USER: shortscale
+          POSTGRES_PASSWORD: shortscale
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U shortscale -d shortscale_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install Goose
+        run: go install github.com/pressly/goose/v3/cmd/goose@v3.28.0
+
+      - name: Validate migration round trip
+        env:
+          DATABASE_URL: postgres://shortscale:shortscale@localhost:5432/shortscale_ci?sslmode=disable
+        run: |
+          goose -dir migrations postgres "$DATABASE_URL" up
+          goose -dir migrations postgres "$DATABASE_URL" status
+          goose -dir migrations postgres "$DATABASE_URL" down-to 0
+          goose -dir migrations postgres "$DATABASE_URL" up
+          goose -dir migrations postgres "$DATABASE_URL" status
+
+  containers:
+    name: Containers
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Validate Compose configuration
+        run: docker compose config >/dev/null
+
+      - name: Build API image
+        run: docker build -f Dockerfile -t shortscale-api:ci .
+
+      - name: Build analytics consumer image
+        run: docker build -f Dockerfile.analytics-consumer -t shortscale-analytics-consumer:ci .
+
+      - name: Verify production image metadata
+        run: |
+          API_USER="$(docker image inspect shortscale-api:ci --format '{{.Config.User}}')"
+          API_ENTRYPOINT="$(docker image inspect shortscale-api:ci --format '{{json .Config.Entrypoint}}')"
+
+          CONSUMER_USER="$(docker image inspect shortscale-analytics-consumer:ci --format '{{.Config.User}}')"
+          CONSUMER_ENTRYPOINT="$(docker image inspect shortscale-analytics-consumer:ci --format '{{json .Config.Entrypoint}}')"
+
+          test "$API_USER" = "65532:65532"
+          test "$API_ENTRYPOINT" = '["/shortscale-api"]'
+
+          test "$CONSUMER_USER" = "65532:65532"
+          test "$CONSUMER_ENTRYPOINT" = '["/shortscale-analytics-consumer"]'
