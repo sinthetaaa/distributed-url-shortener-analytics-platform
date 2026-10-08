@@ -13,6 +13,7 @@ import (
 	database "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/database/generated"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func newAuthIntegrationRouter(
@@ -485,5 +486,324 @@ func TestOwnedURLCreationPreservesCollisionRetry(
 			"owner ID = %d, want 91",
 			store.createOwnedParams.UserID.Int64,
 		)
+	}
+}
+
+func TestListUserURLsRequiresAuthentication(t *testing.T) {
+	store := &fakeURLStore{}
+
+	router := newRouterWithDependenciesMetricsAndAuth(
+		authTestLogger(),
+		fakeDatabasePinger{},
+		store,
+		store,
+		newLocalTokenBucketLimiter(
+			createURLRateLimitCapacity,
+			createURLRateLimitRefillPerSecond,
+		),
+		noopRedirectEventRecorder{},
+		nil,
+		nil,
+		&fakeAuthenticationService{},
+		false,
+	)
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/urls",
+		nil,
+	)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf(
+			"status = %d, want %d",
+			recorder.Code,
+			http.StatusUnauthorized,
+		)
+	}
+
+	if store.listCalled {
+		t.Fatal("ListURLsByUser must not run without authentication")
+	}
+}
+
+func TestListUserURLsUsesAuthenticatedOwner(t *testing.T) {
+	createdAt := time.Date(
+		2026,
+		time.October,
+		8,
+		12,
+		30,
+		0,
+		0,
+		time.UTC,
+	)
+
+	store := &fakeURLStore{
+		listed: []database.Url{
+			{
+				ID:          15,
+				ShortCode:   "recent1",
+				OriginalUrl: "https://example.com/recent",
+				CreatedAt: pgtype.Timestamptz{
+					Time:  createdAt,
+					Valid: true,
+				},
+				ExpiresAt: pgtype.Timestamptz{
+					Valid: false,
+				},
+				UserID: pgtype.Int8{
+					Int64: 44,
+					Valid: true,
+				},
+			},
+		},
+	}
+
+	service := &fakeAuthenticationService{
+		authenticateFn: func(
+			context.Context,
+			string,
+		) (database.User, error) {
+			return database.User{
+				ID:    44,
+				Email: "owner@example.com",
+			}, nil
+		},
+	}
+
+	router := newRouterWithDependenciesMetricsAndAuth(
+		authTestLogger(),
+		fakeDatabasePinger{},
+		store,
+		store,
+		newLocalTokenBucketLimiter(
+			createURLRateLimitCapacity,
+			createURLRateLimitRefillPerSecond,
+		),
+		noopRedirectEventRecorder{},
+		nil,
+		nil,
+		service,
+		false,
+	)
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/urls?limit=7",
+		nil,
+	)
+
+	request.AddCookie(
+		&http.Cookie{
+			Name:  sessionCookieName,
+			Value: "valid-session-token",
+		},
+	)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf(
+			"status = %d, want %d: %s",
+			recorder.Code,
+			http.StatusOK,
+			recorder.Body.String(),
+		)
+	}
+
+	if !store.listCalled {
+		t.Fatal("expected ListURLsByUser to be called")
+	}
+
+	if !store.listParams.UserID.Valid {
+		t.Fatal("list user ID must be non-null")
+	}
+
+	if store.listParams.UserID.Int64 != 44 {
+		t.Fatalf(
+			"list user ID = %d, want 44",
+			store.listParams.UserID.Int64,
+		)
+	}
+
+	if store.listParams.Limit != 7 {
+		t.Fatalf(
+			"list limit = %d, want 7",
+			store.listParams.Limit,
+		)
+	}
+
+	var response listUserURLsResponse
+
+	if err := json.NewDecoder(
+		recorder.Body,
+	).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	if len(response.URLs) != 1 {
+		t.Fatalf(
+			"URL count = %d, want 1",
+			len(response.URLs),
+		)
+	}
+
+	got := response.URLs[0]
+
+	if got.ShortCode != "recent1" {
+		t.Fatalf(
+			"short code = %q, want recent1",
+			got.ShortCode,
+		)
+	}
+
+	if got.OriginalURL != "https://example.com/recent" {
+		t.Fatalf(
+			"original URL = %q",
+			got.OriginalURL,
+		)
+	}
+
+	if !got.CreatedAt.Equal(createdAt) {
+		t.Fatalf(
+			"created_at = %v, want %v",
+			got.CreatedAt,
+			createdAt,
+		)
+	}
+
+	if got.ExpiresAt != nil {
+		t.Fatalf(
+			"expires_at = %v, want nil",
+			got.ExpiresAt,
+		)
+	}
+}
+
+func TestListUserURLsUsesDefaultLimit(t *testing.T) {
+	store := &fakeURLStore{}
+
+	service := &fakeAuthenticationService{
+		authenticateFn: func(
+			context.Context,
+			string,
+		) (database.User, error) {
+			return database.User{
+				ID:    55,
+				Email: "owner@example.com",
+			}, nil
+		},
+	}
+
+	router := newRouterWithDependenciesMetricsAndAuth(
+		authTestLogger(),
+		fakeDatabasePinger{},
+		store,
+		store,
+		newLocalTokenBucketLimiter(
+			createURLRateLimitCapacity,
+			createURLRateLimitRefillPerSecond,
+		),
+		noopRedirectEventRecorder{},
+		nil,
+		nil,
+		service,
+		false,
+	)
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/urls",
+		nil,
+	)
+
+	request.AddCookie(
+		&http.Cookie{
+			Name:  sessionCookieName,
+			Value: "valid-session-token",
+		},
+	)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf(
+			"status = %d, want %d",
+			recorder.Code,
+			http.StatusOK,
+		)
+	}
+
+	if store.listParams.Limit != defaultURLListLimit {
+		t.Fatalf(
+			"limit = %d, want %d",
+			store.listParams.Limit,
+			defaultURLListLimit,
+		)
+	}
+}
+
+func TestListUserURLsRejectsInvalidLimit(t *testing.T) {
+	store := &fakeURLStore{}
+
+	service := &fakeAuthenticationService{
+		authenticateFn: func(
+			context.Context,
+			string,
+		) (database.User, error) {
+			return database.User{
+				ID: 66,
+			}, nil
+		},
+	}
+
+	router := newRouterWithDependenciesMetricsAndAuth(
+		authTestLogger(),
+		fakeDatabasePinger{},
+		store,
+		store,
+		newLocalTokenBucketLimiter(
+			createURLRateLimitCapacity,
+			createURLRateLimitRefillPerSecond,
+		),
+		noopRedirectEventRecorder{},
+		nil,
+		nil,
+		service,
+		false,
+	)
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/urls?limit=101",
+		nil,
+	)
+
+	request.AddCookie(
+		&http.Cookie{
+			Name:  sessionCookieName,
+			Value: "valid-session-token",
+		},
+	)
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf(
+			"status = %d, want %d",
+			recorder.Code,
+			http.StatusBadRequest,
+		)
+	}
+
+	if store.listCalled {
+		t.Fatal("ListURLsByUser must not run for invalid limit")
 	}
 }

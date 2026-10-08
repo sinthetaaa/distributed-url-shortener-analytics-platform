@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
+	"time"
 
 	database "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/database/generated"
 	"github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/shortcode"
@@ -21,6 +23,8 @@ import (
 const (
 	shortCodeLength      = 7
 	maxShortCodeAttempts = 5
+	defaultURLListLimit  = 20
+	maximumURLListLimit  = 100
 )
 
 type urlCreator interface {
@@ -34,6 +38,13 @@ type ownedURLCreator interface {
 	) (database.Url, error)
 }
 
+type userURLLister interface {
+	ListURLsByUser(
+		context.Context,
+		database.ListURLsByUserParams,
+	) ([]database.Url, error)
+}
+
 type urlFinder interface {
 	GetURLByShortCode(context.Context, string) (database.Url, error)
 }
@@ -45,6 +56,134 @@ type createURLRequest struct {
 type createURLResponse struct {
 	ShortCode   string `json:"short_code"`
 	OriginalURL string `json:"original_url"`
+}
+
+type userURLResponse struct {
+	ShortCode   string     `json:"short_code"`
+	OriginalURL string     `json:"original_url"`
+	CreatedAt   time.Time  `json:"created_at"`
+	ExpiresAt   *time.Time `json:"expires_at"`
+}
+
+type listUserURLsResponse struct {
+	URLs []userURLResponse `json:"urls"`
+}
+
+func listUserURLsHandler(
+	logger *slog.Logger,
+	lister userURLLister,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := authenticatedUserFromContext(r.Context())
+		if !ok {
+			logger.Error("authenticated user missing from URL list context")
+			writeJSONError(
+				w,
+				logger,
+				http.StatusInternalServerError,
+				"internal server error",
+			)
+			return
+		}
+
+		limit, err := parseURLListLimit(
+			r.URL.Query().Get("limit"),
+		)
+		if err != nil {
+			writeJSONError(
+				w,
+				logger,
+				http.StatusBadRequest,
+				err.Error(),
+			)
+			return
+		}
+
+		urls, err := lister.ListURLsByUser(
+			r.Context(),
+			database.ListURLsByUserParams{
+				UserID: pgtype.Int8{
+					Int64: user.ID,
+					Valid: true,
+				},
+				Limit: int32(limit),
+			},
+		)
+		if err != nil {
+			logger.Error(
+				"failed to list user URLs",
+				"user_id",
+				user.ID,
+				"error",
+				err,
+			)
+
+			writeJSONError(
+				w,
+				logger,
+				http.StatusInternalServerError,
+				"internal server error",
+			)
+			return
+		}
+
+		response := make(
+			[]userURLResponse,
+			0,
+			len(urls),
+		)
+
+		for _, item := range urls {
+			var expiresAt *time.Time
+
+			if item.ExpiresAt.Valid {
+				expiry := item.ExpiresAt.Time
+				expiresAt = &expiry
+			}
+
+			response = append(
+				response,
+				userURLResponse{
+					ShortCode:   item.ShortCode,
+					OriginalURL: item.OriginalUrl,
+					CreatedAt:   item.CreatedAt.Time,
+					ExpiresAt:   expiresAt,
+				},
+			)
+		}
+
+		writeJSON(
+			w,
+			logger,
+			http.StatusOK,
+			listUserURLsResponse{
+				URLs: response,
+			},
+		)
+	}
+}
+
+func parseURLListLimit(raw string) (int, error) {
+	if raw == "" {
+		return defaultURLListLimit, nil
+	}
+
+	limit, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf(
+			"limit must be an integer between 1 and %d",
+			maximumURLListLimit,
+		)
+	}
+
+	if limit < 1 || limit > maximumURLListLimit {
+		return 0, fmt.Errorf(
+			"limit must be between 1 and %d",
+			maximumURLListLimit,
+		)
+	}
+
+	return limit, nil
 }
 
 func createOwnedURLHandler(

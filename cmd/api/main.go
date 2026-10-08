@@ -428,12 +428,19 @@ func newRouterWithDependenciesMetricsAndAuth(
 			panic("authenticated router requires an owned URL creator")
 		}
 
+		userLister, ok := creator.(userURLLister)
+		if !ok {
+			panic("authenticated router requires a user URL lister")
+		}
+
+		authMiddleware := authenticationMiddleware(
+			logger,
+			authService,
+			cookieSecure,
+		)
+
 		router.With(
-			authenticationMiddleware(
-				logger,
-				authService,
-				cookieSecure,
-			),
+			authMiddleware,
 			rateLimitMiddleware(
 				logger,
 				createURLLimiter,
@@ -443,6 +450,16 @@ func newRouterWithDependenciesMetricsAndAuth(
 			createOwnedURLHandler(
 				logger,
 				ownedCreator,
+			),
+		)
+
+		router.With(
+			authMiddleware,
+		).Get(
+			"/api/v1/urls",
+			listUserURLsHandler(
+				logger,
+				userLister,
 			),
 		)
 	} else {

@@ -33,6 +33,10 @@ type fakeURLStore struct {
 	createOwnedParams database.CreateOwnedURLParams
 	createOwnedCalled bool
 	attempts          int
+	listed            []database.Url
+	listErr           error
+	listParams        database.ListURLsByUserParams
+	listCalled        bool
 
 	found      database.Url
 	findErr    error
@@ -88,6 +92,20 @@ func (f *fakeURLStore) CreateOwnedURL(
 	created.UserID = params.UserID
 
 	return created, nil
+}
+
+func (f *fakeURLStore) ListURLsByUser(
+	_ context.Context,
+	params database.ListURLsByUserParams,
+) ([]database.Url, error) {
+	f.listCalled = true
+	f.listParams = params
+
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+
+	return f.listed, nil
 }
 
 func (f *fakeURLStore) GetURLByShortCode(_ context.Context, shortCode string) (database.Url, error) {
