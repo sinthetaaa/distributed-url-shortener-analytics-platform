@@ -43,11 +43,31 @@ WHERE event_id = $1;
 
 -- name: GetRedirectAnalyticsSummary :one
 SELECT
-    COUNT(*)::bigint AS total_redirects,
-    MIN(occurred_at)::timestamptz AS first_redirect_at,
-    MAX(occurred_at)::timestamptz AS last_redirect_at
-FROM redirect_events
-WHERE short_code = $1;
+    COALESCE(
+        (
+            SELECT SUM(d.redirects)::bigint
+            FROM redirect_daily_counts AS d
+            WHERE d.short_code =
+                sqlc.arg(target_short_code)
+        ),
+        0
+    )::bigint AS total_redirects,
+    (
+        SELECT first_event.occurred_at
+        FROM redirect_events AS first_event
+        WHERE first_event.short_code =
+            sqlc.arg(target_short_code)
+        ORDER BY first_event.occurred_at ASC
+        LIMIT 1
+    )::timestamptz AS first_redirect_at,
+    (
+        SELECT last_event.occurred_at
+        FROM redirect_events AS last_event
+        WHERE last_event.short_code =
+            sqlc.arg(target_short_code)
+        ORDER BY last_event.occurred_at DESC
+        LIMIT 1
+    )::timestamptz AS last_redirect_at;
 
 -- name: GetDailyRedirectCounts :many
 SELECT

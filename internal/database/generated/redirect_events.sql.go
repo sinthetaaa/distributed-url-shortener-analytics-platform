@@ -61,11 +61,31 @@ func (q *Queries) GetDailyRedirectCounts(ctx context.Context, arg GetDailyRedire
 
 const getRedirectAnalyticsSummary = `-- name: GetRedirectAnalyticsSummary :one
 SELECT
-    COUNT(*)::bigint AS total_redirects,
-    MIN(occurred_at)::timestamptz AS first_redirect_at,
-    MAX(occurred_at)::timestamptz AS last_redirect_at
-FROM redirect_events
-WHERE short_code = $1
+    COALESCE(
+        (
+            SELECT SUM(d.redirects)::bigint
+            FROM redirect_daily_counts AS d
+            WHERE d.short_code =
+                $1
+        ),
+        0
+    )::bigint AS total_redirects,
+    (
+        SELECT first_event.occurred_at
+        FROM redirect_events AS first_event
+        WHERE first_event.short_code =
+            $1
+        ORDER BY first_event.occurred_at ASC
+        LIMIT 1
+    )::timestamptz AS first_redirect_at,
+    (
+        SELECT last_event.occurred_at
+        FROM redirect_events AS last_event
+        WHERE last_event.short_code =
+            $1
+        ORDER BY last_event.occurred_at DESC
+        LIMIT 1
+    )::timestamptz AS last_redirect_at
 `
 
 type GetRedirectAnalyticsSummaryRow struct {
@@ -74,8 +94,8 @@ type GetRedirectAnalyticsSummaryRow struct {
 	LastRedirectAt  pgtype.Timestamptz `json:"last_redirect_at"`
 }
 
-func (q *Queries) GetRedirectAnalyticsSummary(ctx context.Context, shortCode string) (GetRedirectAnalyticsSummaryRow, error) {
-	row := q.db.QueryRow(ctx, getRedirectAnalyticsSummary, shortCode)
+func (q *Queries) GetRedirectAnalyticsSummary(ctx context.Context, targetShortCode string) (GetRedirectAnalyticsSummaryRow, error) {
+	row := q.db.QueryRow(ctx, getRedirectAnalyticsSummary, targetShortCode)
 	var i GetRedirectAnalyticsSummaryRow
 	err := row.Scan(&i.TotalRedirects, &i.FirstRedirectAt, &i.LastRedirectAt)
 	return i, err
