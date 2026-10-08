@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"time"
@@ -12,7 +13,10 @@ import (
 	database "github.com/sinthetaaa/distributed-url-shortener-analytics-platform/internal/database/generated"
 )
 
-const sessionCookieName = "shortscale_session"
+const (
+	sessionCookieName       = "shortscale_session"
+	maxAuthRequestBodyBytes = 4096
+)
 
 type authenticationService interface {
 	Register(
@@ -322,10 +326,26 @@ func decodeAuthRequest(
 ) (authRequest, bool) {
 	var request authRequest
 
+	r.Body = http.MaxBytesReader(
+		w,
+		r.Body,
+		maxAuthRequestBodyBytes,
+	)
+
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 
 	if err := decoder.Decode(&request); err != nil {
+		writeJSONError(
+			w,
+			logger,
+			http.StatusBadRequest,
+			"invalid request body",
+		)
+		return authRequest{}, false
+	}
+
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 		writeJSONError(
 			w,
 			logger,

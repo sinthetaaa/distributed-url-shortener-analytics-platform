@@ -14,7 +14,21 @@ const (
 var (
 	ErrPasswordTooShort = errors.New("password must be at least 8 characters")
 	ErrPasswordTooLong  = errors.New("password must be at most 72 bytes")
+
+	dummyPasswordHash = mustCreateDummyPasswordHash()
 )
+
+func mustCreateDummyPasswordHash() string {
+	hash, err := bcrypt.GenerateFromPassword(
+		[]byte("shortscale-login-timing-dummy-password"),
+		bcrypt.DefaultCost,
+	)
+	if err != nil {
+		panic("failed to create dummy password hash")
+	}
+
+	return string(hash)
+}
 
 func ValidatePassword(password string) error {
 	if len(password) < minPasswordLength {

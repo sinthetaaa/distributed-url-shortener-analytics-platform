@@ -62,6 +62,7 @@ type Service struct {
 	store                Store
 	now                  func() time.Time
 	generateSessionToken func() (string, error)
+	verifyPassword       func(string, string) bool
 	sessionTTL           time.Duration
 }
 
@@ -70,6 +71,7 @@ func NewService(store Store) *Service {
 		store:                store,
 		now:                  time.Now,
 		generateSessionToken: GenerateSessionToken,
+		verifyPassword:       VerifyPassword,
 		sessionTTL:           defaultSessionTTL,
 	}
 }
@@ -120,13 +122,14 @@ func (s *Service) Login(
 	user, err := s.store.GetUserByEmail(ctx, normalizedEmail)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			s.verifyPassword(dummyPasswordHash, password)
 			return Session{}, ErrInvalidCredentials
 		}
 
 		return Session{}, err
 	}
 
-	if !VerifyPassword(user.PasswordHash, password) {
+	if !s.verifyPassword(user.PasswordHash, password) {
 		return Session{}, ErrInvalidCredentials
 	}
 

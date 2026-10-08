@@ -387,12 +387,27 @@ func newRouterWithDependenciesMetricsAndAuth(
 	})
 
 	if authService != nil {
-		router.Post(
+		authLimiter := newLocalTokenBucketLimiter(
+			authRateLimitCapacity,
+			authRateLimitRefillPerSecond,
+		)
+
+		router.With(
+			rateLimitMiddleware(
+				logger,
+				authLimiter,
+			),
+		).Post(
 			"/api/v1/auth/register",
 			registerHandler(logger, authService),
 		)
 
-		router.Post(
+		router.With(
+			rateLimitMiddleware(
+				logger,
+				authLimiter,
+			),
+		).Post(
 			"/api/v1/auth/login",
 			loginHandler(
 				logger,

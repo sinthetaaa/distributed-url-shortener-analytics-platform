@@ -14,6 +14,9 @@ import (
 const (
 	createURLRateLimitCapacity        = 5
 	createURLRateLimitRefillPerSecond = 10.0 / 60.0
+
+	authRateLimitCapacity        = 5
+	authRateLimitRefillPerSecond = 5.0 / 60.0
 )
 
 type rateLimitDecision struct {
