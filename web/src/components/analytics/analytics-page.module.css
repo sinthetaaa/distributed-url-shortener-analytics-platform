@@ -1,0 +1,388 @@
+.page {
+  min-height: 100svh;
+  padding:
+    0
+    var(--page-gutter-desktop)
+    96px;
+}
+
+.header {
+  width: min(100%, var(--content-max));
+  min-height: 68px;
+  margin: 0 auto;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.brand {
+  color: var(--color-text-primary);
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.navLink {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.navLink:hover {
+  color: var(--color-accent);
+}
+
+.content {
+  width: min(100%, var(--content-max));
+  margin: 0 auto;
+}
+
+.analytics,
+.state,
+.loading {
+  width: min(100%, 860px);
+  padding-top: 72px;
+}
+
+.intro {
+  padding-bottom: 40px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.backLink {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.backLink:hover {
+  color: var(--color-accent);
+}
+
+.eyebrow {
+  margin: 28px 0 8px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.title,
+.stateTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+}
+
+.title {
+  font-size: clamp(44px, 6vw, 56px);
+  line-height: 1;
+}
+
+.shortURL {
+  display: inline-block;
+  margin-top: 16px;
+  overflow-wrap: anywhere;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.shortURL:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.metricBlock {
+  padding: 44px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.metricLabel {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.metricValue {
+  margin: 8px 0 32px;
+  font-family: var(--font-display);
+  font-size: clamp(56px, 9vw, 76px);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+}
+
+.metricMeta {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 32px;
+}
+
+.metricMeta div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metricMeta span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.metricMeta strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.chartHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 40px 0 18px;
+}
+
+.chartTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 400;
+}
+
+.chartSummary {
+  margin: 7px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.rangeGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rangeButton {
+  min-width: 46px;
+  height: 34px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.rangeButton:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+
+.rangeButtonActive {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-surface);
+}
+
+.rangeButtonActive:hover {
+  border-color: var(--color-accent-hover);
+  background: var(--color-accent-hover);
+  color: var(--color-surface);
+}
+
+.chartWrap {
+  width: 100%;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  padding: 24px 0 10px;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chartBaseline {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.chartLine {
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.chartPoint {
+  fill: var(--color-surface);
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.chartLabel {
+  fill: var(--color-text-secondary);
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+
+.zeroState {
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  padding: 36px 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.zeroState p {
+  margin: 0;
+}
+
+.zeroState p + p {
+  margin-top: 5px;
+}
+
+.stateTitle {
+  font-size: clamp(40px, 6vw, 52px);
+  line-height: 1.05;
+}
+
+.stateCopy {
+  max-width: 520px;
+  margin: 18px 0 28px;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.retryButton {
+  height: 42px;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-control);
+  background: var(--color-accent);
+  color: var(--color-surface);
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.retryButton:hover {
+  border-color: var(--color-accent-hover);
+  background: var(--color-accent-hover);
+}
+
+.loadingTitle,
+.loadingMetric,
+.loadingChart {
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgb(21 19 15 / 0.04),
+      transparent
+    );
+  background-size: 220% 100%;
+  animation: analytics-loading 1.4s linear infinite;
+}
+
+.loadingTitle {
+  width: 220px;
+  height: 50px;
+}
+
+.loadingMetric {
+  width: 180px;
+  height: 74px;
+  margin-top: 72px;
+}
+
+.loadingChart {
+  width: 100%;
+  height: 260px;
+  margin-top: 72px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+@keyframes analytics-loading {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loadingTitle,
+  .loadingMetric,
+  .loadingChart {
+    animation: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding:
+      0
+      var(--page-gutter-mobile)
+      64px;
+  }
+
+  .header {
+    min-height: 64px;
+    gap: 18px;
+  }
+
+  .brand {
+    font-size: 24px;
+  }
+
+  .nav {
+    gap: 18px;
+  }
+
+  .analytics,
+  .state,
+  .loading {
+    padding-top: 56px;
+  }
+
+  .metricMeta {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .chartHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rangeGroup {
+    width: 100%;
+  }
+
+  .rangeButton {
+    flex: 1;
+  }
+}
