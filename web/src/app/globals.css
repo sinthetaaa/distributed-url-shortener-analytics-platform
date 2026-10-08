@@ -1,0 +1,133 @@
+@layer reset, tokens, base;
+
+@layer tokens {
+  :root {
+    --color-canvas: #f2ebdd;
+    --color-surface: #fbf8f1;
+    --color-text-primary: #15130f;
+    --color-text-secondary: #6f685f;
+    --color-border: #d8d0c3;
+    --color-border-strong: #beb5a7;
+
+    --color-accent: #4b2a63;
+    --color-accent-hover: #382049;
+    --color-accent-soft: #e8ddf0;
+
+    --color-success: #256b4a;
+    --color-error: #b83b3b;
+
+    --font-display: "Instrument Serif", Georgia, serif;
+    --font-sans:
+      "IBM Plex Sans",
+      ui-sans-serif,
+      system-ui,
+      sans-serif;
+    --font-mono:
+      "IBM Plex Mono",
+      ui-monospace,
+      SFMono-Regular,
+      monospace;
+
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+    --space-24: 6rem;
+
+    --radius-control: 6px;
+    --radius-surface: 8px;
+
+    --content-max: 1180px;
+    --page-gutter-desktop: 40px;
+    --page-gutter-tablet: 28px;
+    --page-gutter-mobile: 18px;
+  }
+}
+
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  a {
+    color: inherit;
+  }
+}
+
+@layer base {
+  html {
+    background: var(--color-canvas);
+    color: var(--color-text-primary);
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--color-canvas);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-surface);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+
+  .foundation {
+    min-height: 100vh;
+    padding:
+      var(--space-8)
+      var(--page-gutter-desktop);
+  }
+
+  .foundation__name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 2rem;
+  }
+
+  @media (max-width: 768px) {
+    .foundation {
+      padding:
+        var(--space-6)
+        var(--page-gutter-mobile);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
