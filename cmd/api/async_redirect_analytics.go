@@ -19,7 +19,7 @@ import (
 
 const (
 	redirectAnalyticsQueueCapacity   = 4096
-	redirectAnalyticsPublishTimeout  = 500 * time.Millisecond
+	redirectAnalyticsPublishTimeout  = 5 * time.Second
 	redirectAnalyticsDropLogInterval = time.Second
 
 	redirectAnalyticsEnqueueResultEnqueued = "enqueued"
