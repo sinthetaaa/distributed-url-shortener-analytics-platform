@@ -1,5 +1,7 @@
 FROM golang:1.27.1-alpine AS builder
 
+RUN apk add --no-cache ca-certificates
+
 WORKDIR /src
 
 COPY go.mod go.sum ./
@@ -17,6 +19,7 @@ RUN CGO_ENABLED=0 GOOS=linux \
 
 FROM scratch
 
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /out/shortscale-analytics-consumer /shortscale-analytics-consumer
 
 USER 65532:65532
