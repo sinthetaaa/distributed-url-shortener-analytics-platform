@@ -6,7 +6,7 @@ logging {
 prometheus.scrape "shortscale_api" {
 	targets = [
 		{
-			"__address__" = "shortscale-api.railway.internal:9090",
+			"__address__" = "distributed-url-shortener-analyt.railway.internal:9090",
 		},
 	]
 
