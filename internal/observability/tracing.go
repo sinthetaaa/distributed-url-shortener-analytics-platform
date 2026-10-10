@@ -15,12 +15,24 @@ import (
 )
 
 const (
-	serviceNamespace = "shortscale"
-	localEnvironment = "local"
+	serviceNamespace              = "shortscale"
+	localEnvironment              = "local"
+	deploymentEnvironmentVariable = "DEPLOYMENT_ENVIRONMENT"
 )
 
 type Tracing struct {
 	provider *sdktrace.TracerProvider
+}
+
+func deploymentEnvironmentName() string {
+	value := strings.TrimSpace(
+		os.Getenv(deploymentEnvironmentVariable),
+	)
+	if value == "" {
+		return localEnvironment
+	}
+
+	return value
 }
 
 func NewTracing(
@@ -60,7 +72,7 @@ func NewTracing(
 		attribute.String("service.namespace", serviceNamespace),
 		attribute.String(
 			"deployment.environment.name",
-			localEnvironment,
+			deploymentEnvironmentName(),
 		),
 	)
 
