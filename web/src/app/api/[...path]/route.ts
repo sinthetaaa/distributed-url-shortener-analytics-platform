@@ -83,6 +83,8 @@ async function proxyRequest(
   responseHeaders.delete("content-length");
   responseHeaders.delete("content-encoding");
 
+  responseHeaders.set("Cache-Control", "no-store");
+
   return new Response(upstream.body, {
     status: upstream.status,
     statusText: upstream.statusText,
