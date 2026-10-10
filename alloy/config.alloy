@@ -1,0 +1,84 @@
+logging {
+	level  = "info"
+	format = "logfmt"
+}
+
+prometheus.scrape "shortscale_api" {
+	targets = [
+		{
+			"__address__" = "shortscale-api.railway.internal:9090",
+		},
+	]
+
+	job_name        = "shortscale-api"
+	scrape_interval = "15s"
+	scrape_timeout  = "5s"
+
+	forward_to = [
+		prometheus.remote_write.grafana_cloud.receiver,
+	]
+}
+
+prometheus.scrape "shortscale_analytics_consumer" {
+	targets = [
+		{
+			"__address__" = "shortscale-analytics-consumer.railway.internal:9091",
+		},
+	]
+
+	job_name        = "shortscale-analytics-consumer"
+	scrape_interval = "15s"
+	scrape_timeout  = "5s"
+
+	forward_to = [
+		prometheus.remote_write.grafana_cloud.receiver,
+	]
+}
+
+prometheus.remote_write "grafana_cloud" {
+	external_labels = {
+		project     = "shortscale",
+		environment = "production",
+	}
+
+	endpoint {
+		url = sys.env("GRAFANA_CLOUD_PROMETHEUS_URL")
+
+		basic_auth {
+			username = sys.env("GRAFANA_CLOUD_PROMETHEUS_USERNAME")
+			password = sys.env("GRAFANA_CLOUD_API_KEY")
+		}
+	}
+}
+
+otelcol.receiver.otlp "shortscale" {
+	grpc {
+		endpoint = "0.0.0.0:4317"
+	}
+
+	output {
+		traces = [
+			otelcol.processor.batch.shortscale.input,
+		]
+	}
+}
+
+otelcol.processor.batch "shortscale" {
+	output {
+		traces = [
+			otelcol.exporter.otlphttp.grafana_cloud.input,
+		]
+	}
+}
+
+otelcol.auth.basic "grafana_cloud" {
+	username = sys.env("GRAFANA_CLOUD_OTLP_USERNAME")
+	password = sys.env("GRAFANA_CLOUD_API_KEY")
+}
+
+otelcol.exporter.otlphttp "grafana_cloud" {
+	client {
+		endpoint = sys.env("GRAFANA_CLOUD_OTLP_ENDPOINT")
+		auth     = otelcol.auth.basic.grafana_cloud.handler
+	}
+}
