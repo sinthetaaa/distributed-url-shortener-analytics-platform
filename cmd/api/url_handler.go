@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -21,10 +22,11 @@ import (
 )
 
 const (
-	shortCodeLength      = 7
-	maxShortCodeAttempts = 5
-	defaultURLListLimit  = 20
-	maximumURLListLimit  = 100
+	shortCodeLength        = 7
+	maxShortCodeAttempts   = 5
+	defaultURLListLimit    = 20
+	maximumURLListLimit    = 100
+	maxURLRequestBodyBytes = 4096
 )
 
 type urlCreator interface {
@@ -51,6 +53,45 @@ type urlFinder interface {
 
 type createURLRequest struct {
 	URL string `json:"url"`
+}
+
+func decodeCreateURLRequest(
+	w http.ResponseWriter,
+	r *http.Request,
+	logger *slog.Logger,
+) (createURLRequest, bool) {
+	var request createURLRequest
+
+	r.Body = http.MaxBytesReader(
+		w,
+		r.Body,
+		maxURLRequestBodyBytes,
+	)
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(&request); err != nil {
+		writeJSONError(
+			w,
+			logger,
+			http.StatusBadRequest,
+			"invalid request body",
+		)
+		return createURLRequest{}, false
+	}
+
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		writeJSONError(
+			w,
+			logger,
+			http.StatusBadRequest,
+			"invalid request body",
+		)
+		return createURLRequest{}, false
+	}
+
+	return request, true
 }
 
 type createURLResponse struct {
@@ -203,18 +244,12 @@ func createOwnedURLHandler(
 			return
 		}
 
-		var request createURLRequest
-
-		decoder := json.NewDecoder(r.Body)
-		decoder.DisallowUnknownFields()
-
-		if err := decoder.Decode(&request); err != nil {
-			writeJSONError(
-				w,
-				logger,
-				http.StatusBadRequest,
-				"invalid request body",
-			)
+		request, ok := decodeCreateURLRequest(
+			w,
+			r,
+			logger,
+		)
+		if !ok {
 			return
 		}
 
@@ -309,13 +344,12 @@ func createOwnedURLHandler(
 
 func createURLHandler(logger *slog.Logger, creator urlCreator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var request createURLRequest
-
-		decoder := json.NewDecoder(r.Body)
-		decoder.DisallowUnknownFields()
-
-		if err := decoder.Decode(&request); err != nil {
-			writeJSONError(w, logger, http.StatusBadRequest, "invalid request body")
+		request, ok := decodeCreateURLRequest(
+			w,
+			r,
+			logger,
+		)
+		if !ok {
 			return
 		}
 

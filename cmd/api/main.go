@@ -195,8 +195,12 @@ func main() {
 	}()
 
 	server := &http.Server{
-		Addr:    addr,
-		Handler: tracedHandler,
+		Addr:              addr,
+		Handler:           tracedHandler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	serverErrors := make(chan error, 1)
