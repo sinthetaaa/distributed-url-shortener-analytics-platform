@@ -51,7 +51,12 @@ async function proxyRequest(
 
   try {
     upstream = await fetch(target, init);
-  } catch {
+  } catch (error) {
+    console.error(
+      "ShortScale API proxy upstream request failed",
+      error,
+    );
+
     return Response.json(
       {
         error:
