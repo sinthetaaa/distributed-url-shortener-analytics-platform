@@ -508,3 +508,44 @@ Revisit this decision if:
 - different endpoints require different failure policies
 - rate-limit policy needs to vary by customer or authentication tier
 - production measurements justify a local emergency fallback limiter
+
+## Authentication-era and production evolution
+
+The original Phase 8 decision predates user authentication.
+
+Authentication now exists, but the production URL-creation limiter deliberately remains keyed by client IP rather than user ID.
+
+Current URL-creation policy remains:
+
+```text
+burst capacity: 5
+refill rate:    10 requests/minute
+coordination:   Redis + atomic Lua
+failure mode:   fail open
+```
+
+Registration and login use a separate process-local client-IP token bucket:
+
+```text
+burst capacity: 5
+refill rate:    5 requests/minute
+```
+
+The authentication limiter is intentionally not presented as a distributed global account-abuse system.
+
+Production security testing also verified the deployed proxy/header path rather than assuming that an arbitrary client-supplied forwarding header could bypass the effective limiter identity.
+
+The availability trade-off remains unchanged:
+
+```text
+Redis unavailable
+→ distributed create limiter unavailable
+→ request allowed
+→ PostgreSQL remains the correctness dependency
+```
+
+Authentication therefore created a possible future identity for rate limiting, but it did not automatically justify changing the established production create policy.
+
+A user-ID-based policy should be introduced only if product/abuse requirements justify how limits should behave across accounts, shared networks, unauthenticated endpoints, and multiple sessions.
+
+See [Authentication, sessions and ownership](../authentication.md).

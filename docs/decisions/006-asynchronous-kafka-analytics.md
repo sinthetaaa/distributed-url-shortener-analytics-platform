@@ -128,7 +128,7 @@ availability > analytics completeness
 
 ## Background Publishing
 
-One background worker currently drains the queue per API process. It publishes through the ShortScale Kafka producer with a 500 ms per-publish timeout.
+At the end of Phase 9, one background worker drained the queue per API process with a 500 ms per-publish timeout. The later production implementation retained one bounded worker/queue per API process but increased the application publish timeout to 5 seconds.
 
 Failed publishes are logged and are not synchronously retried by the redirect handler. The worker model also avoids creating one goroutine per request.
 
@@ -214,9 +214,9 @@ ingested_at:      unchanged
 
 This experimentally verified duplicate-safe side effects under at-least-once delivery.
 
-## Consumer Error Policy
+## Phase 9 Consumer Error Policy
 
-Malformed events, processing failures, and commit failures currently stop the consumer loop. Poison records are not silently skipped and there is no dead-letter topic yet.
+At the end of Phase 9, malformed events, processing failures, and commit failures stopped the consumer loop. Poison records were not silently skipped and there was no dead-letter topic.
 
 ## Redirect Performance
 
@@ -287,3 +287,71 @@ Rejected because the Kafka-to-PostgreSQL boundary is not one atomic transaction.
 ## Revisit When
 
 Revisit this decision if analytics loss becomes unacceptable, normal traffic causes sustained drops, producer batching or native async publishing is required, consumer throughput needs multiple instances, partition count must increase, hot short codes create skew, dead-letter handling becomes necessary, multi-broker durability is introduced, or event schema compatibility needs stronger management.
+
+## Resilience evolution after Phase 9
+
+Phase 12 failure testing changed the consumer behavior after real dependency failures exposed two resilience gaps.
+
+### Transient Kafka polling failures
+
+Before:
+
+```text
+transient Kafka poll failure
+→ consumer exits
+```
+
+After:
+
+```text
+transient Kafka poll failure
+→ bounded exponential backoff
+→ same consumer process retries
+```
+
+The retry delay grows from 100 ms up to a 2-second maximum and remains cancellation-aware.
+
+### Transient PostgreSQL persistence failures
+
+Before:
+
+```text
+persistence failure
+→ consumer exits
+```
+
+After:
+
+```text
+persistence failure
+→ Kafka offset remains uncommitted
+→ bounded processing retry
+→ PostgreSQL recovers
+→ persistence succeeds
+→ offset commits
+```
+
+Decode errors and Kafka commit failures remain distinct fatal correctness stages rather than being silently acknowledged.
+
+### Production consumer-outage validation
+
+Phase 15 production testing removed the analytics consumer while redirects continued.
+
+Five accepted redirects were not reflected while the worker was absent, then appeared after the worker was restored and drained the Kafka backlog.
+
+This reinforces the intended semantics:
+
+```text
+API-side publication accepted by Kafka
+→ durable backlog can survive consumer absence
+→ restored consumer catches up
+```
+
+It still does **not** create a global exactly-once guarantee.
+
+The API-side bounded queue and drop policy also remain in place before Kafka acceptance, so sustained Kafka failure can still lose analytics events while preserving redirect availability.
+
+See:
+
+- [Failure engineering and resilience](../resilience.md)
+- [Production validation](../production-validation.md)

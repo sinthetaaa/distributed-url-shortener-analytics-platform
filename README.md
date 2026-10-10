@@ -158,7 +158,8 @@ Technologies are introduced only when the architecture reaches a problem that ju
 | `POST` | `/api/v1/auth/login` | Create an authenticated session |
 | `GET` | `/api/v1/auth/me` | Read the current session |
 | `POST` | `/api/v1/auth/logout` | Revoke the current session |
-| `POST` | `/api/v1/urls` | Create a short URL |
+| `POST` | `/api/v1/urls` | Create a short URL owned by the current user |
+| `GET` | `/api/v1/urls` | List URLs owned by the current user |
 | `GET` | `/{shortCode}` | Redirect to the original URL |
 | `GET` | `/api/v1/urls/{shortCode}/analytics` | Query redirect analytics |
 | `GET` | `/health/live` | Liveness check |
@@ -344,6 +345,8 @@ The final portfolio-oriented presentation package remains a later phase; this RE
 Detailed architecture, engineering decisions, benchmarks, observability, deployment procedures, and failure experiments are maintained under [`docs/`](docs/).
 
 - [Production deployment and operations runbook](docs/production-deployment.md)
+- [Production validation record](docs/production-validation.md)
+- [Authentication, sessions, and URL ownership](docs/authentication.md)
 - [Production database migration procedure](docs/production-migrations.md)
 - [Production hardening and CI](docs/production-hardening.md)
 - [Database scaling benchmarks and distributed-system trade-offs](docs/database-scaling.md)

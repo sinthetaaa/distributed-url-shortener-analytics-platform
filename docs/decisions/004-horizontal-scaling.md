@@ -316,3 +316,32 @@ Revisit this decision if:
 - active health checks become necessary
 - Nginx becomes a measurable bottleneck
 - per-replica circuit-breaker divergence becomes operationally significant
+
+## Production evolution after Phase 7
+
+This ADR records the Phase 7 **local horizontal-scaling experiment**.
+
+Its Nginx topology remains important evidence that the API is stateless, that multiple replicas can share PostgreSQL/Redis, and that process-local coordination such as `singleflight` does not become distributed automatically.
+
+It is not the current production ingress topology.
+
+Phase 15 production uses:
+
+```text
+Vercel frontend
+      ↓
+same-origin API proxy
+      ↓
+Railway shortscale-api
+```
+
+The deployed production architecture does not place the Phase 7 Nginx container in front of the Railway API.
+
+Therefore, claims from the Phase 7 three-replica/Nginx experiments must remain scoped to that controlled local environment.
+
+Current production documentation does not claim multi-host or multi-region API failover merely because the earlier local topology demonstrated replica-level failure tolerance.
+
+See:
+
+- [Production deployment and operations](../production-deployment.md)
+- [Production validation](../production-validation.md)

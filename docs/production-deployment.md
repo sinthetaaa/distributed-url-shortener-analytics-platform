@@ -7,6 +7,8 @@ It documents the deployed topology, provider responsibilities, environment confi
 Detailed subsystem procedures remain in:
 
 - [Production database migrations](production-migrations.md)
+- [Authentication, sessions and ownership](authentication.md)
+- [Production validation](production-validation.md)
 - [Production hardening and CI](production-hardening.md)
 - [Observability](observability.md)
 - [Failure engineering and resilience](resilience.md)
@@ -645,6 +647,8 @@ This is historical evidence for the initial automation run. Every future deploym
 ## Related documentation
 
 - [Production database migrations](production-migrations.md)
+- [Authentication, sessions and ownership](authentication.md)
+- [Production validation](production-validation.md)
 - [Production hardening and CI](production-hardening.md)
 - [Observability](observability.md)
 - [Failure engineering and resilience](resilience.md)

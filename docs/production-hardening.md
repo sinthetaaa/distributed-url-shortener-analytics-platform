@@ -26,7 +26,7 @@ ShortScale now has:
 - CI regression checks protecting the runtime-hardening configuration
 - deliberately tested CI failure behavior
 
-The main CI workflow contains eight blocking jobs:
+At the end of Phase 14, the main CI workflow contained eight blocking jobs:
 
 1. Lint
 2. Test
@@ -502,3 +502,44 @@ ShortScale is therefore ready to move from local production hardening into deplo
 Deployment is a required project outcome.
 
 The next phase will select and implement a deployable production topology, configure real environment/secrets handling, provision required infrastructure, deploy ShortScale, validate the public system, and preserve observability and operational behavior in the deployed environment.
+
+## Post-Phase 14 evolution
+
+Phase 14's eight-job pipeline is preserved above as historical evidence for that phase.
+
+The current main CI workflow has ten blocking jobs:
+
+1. Lint
+2. Test
+3. Race detector
+4. Build
+5. sqlc determinism
+6. Migrations
+7. Product integration
+8. Containers
+9. Security
+10. Frontend
+
+The later `Product integration` job validates the authenticated backend product flow against PostgreSQL.
+
+The `Frontend` job runs:
+
+```text
+npm test
+npm run lint
+npm run typecheck
+npm run build
+npm audit --omit=dev
+```
+
+Deployment verification is intentionally a separate workflow rather than an eleventh CI deployment job.
+
+After successful main CI, `Deployment Verification` waits for Railway and Vercel deployment statuses for the exact commit and then runs production smoke checks.
+
+Phase 15 subsequently completed deployment to Vercel, Railway, Neon, Upstash, Aiven, and Grafana Cloud.
+
+See:
+
+- [Production deployment and operations](production-deployment.md)
+- [Production validation](production-validation.md)
+- [Authentication, sessions and ownership](authentication.md)

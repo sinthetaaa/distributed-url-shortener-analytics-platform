@@ -533,3 +533,78 @@ Instead, its guarantees are intentionally scoped:
 Phase 12 converted several implicit assumptions into measured guarantees and turned two discovered dependency failures into tested recovery behavior.
 
 The next phase focuses on database scaling and distributed-system trade-off analysis rather than adding infrastructure without evidence.
+
+## Production validation after Phase 12
+
+Phase 12 established the controlled local failure model.
+
+Phase 15 later tested a subset of those failure boundaries in the deployed system without intentionally breaking the production database.
+
+### Production analytics-consumer outage
+
+The consumer was removed while the API remained healthy.
+
+Independent private probes confirmed that the consumer metrics endpoint was unreachable during the outage.
+
+Five redirects were accepted while the consumer was absent:
+
+```text
+redirect responses      → 5 / 5 HTTP 302
+analytics during outage → unchanged
+```
+
+After the consumer was restored, the first catch-up observation included the complete five-event increase.
+
+This is consistent with durable Kafka backlog recovery.
+
+It is not an exactly-once claim.
+
+### Production telemetry outage
+
+The API and consumer were temporarily pointed at an unreachable private OTLP endpoint.
+
+During the telemetry failure window:
+
+```text
+API liveness     → 200
+API readiness    → 200
+frontend         → 200
+authenticated me → 200
+redirect         → 302
+analytics        → continued advancing
+```
+
+The original OTLP configuration was restored afterward.
+
+This validates fail-open application behavior for an unavailable telemetry destination.
+
+It does not guarantee that every trace generated during the outage is delivered later.
+
+### Production Redis outage
+
+The API was temporarily configured with an unreachable Redis endpoint.
+
+Startup explicitly logged that Redis was unavailable and that the API would continue without cache.
+
+During the outage:
+
+```text
+API liveness     → 200
+API readiness    → 200
+frontend         → 200
+authenticated me → 200
+redirect         → 302
+analytics        → continued advancing
+```
+
+An invalid URL-creation request reached normal URL validation while the Redis-backed create limiter was unavailable, providing evidence that the distributed limiter failed open.
+
+The production Redis configuration was then restored successfully.
+
+### PostgreSQL production policy
+
+Neon/PostgreSQL was not intentionally failed in production because it is the authoritative datastore and a critical dependency.
+
+The detailed PostgreSQL outage behavior in this document remains based on the controlled Phase 12 environment.
+
+See [Production validation](production-validation.md) for the consolidated Phase 15 evidence and limitations.

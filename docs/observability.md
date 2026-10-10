@@ -2,6 +2,8 @@
 
 ShortScale uses metrics, dashboards, and distributed traces to observe the API, cache path, asynchronous redirect analytics pipeline, Kafka consumer, and PostgreSQL persistence without making telemetry a dependency of request availability.
 
+> **Scope note:** the architecture and experiments in the main Phase 11 sections below record the local observability stack that was used when Phase 11 was completed. Production later evolved to Grafana Alloy on Railway forwarding private application metrics and OTLP traces to Grafana Cloud. The production topology is recorded in the **Production evolution after Phase 11** section below and in the deployment runbook.
+
 ## Architecture
 
 ```text
@@ -261,6 +263,47 @@ A known post-load trace also reached Tempo successfully, proving that tracing re
 The client latency includes local Nginx, TCP connection setup, scheduling, and client-side overhead. The Prometheus histogram measures server-side request handling and is therefore the more direct view of application latency.
 
 The Collector-outage and healthy-stack runs used different request counts, so they are treated as separate resilience/load experiments and not as a controlled tracing-overhead benchmark.
+
+## Production evolution after Phase 11
+
+The Phase 11 local stack used Prometheus, Tempo, and the OpenTelemetry Collector to establish the observability model.
+
+The deployed Phase 15 topology keeps the same application metrics and OpenTelemetry instrumentation while changing the collection backend:
+
+```text
+Railway API :9090 -----------+
+                              |
+Railway consumer :9091 -------+--> Railway Grafana Alloy
+                              |         |
+API + consumer OTLP :4317 ----+         +--> Grafana Cloud metrics
+                                        +--> Grafana Cloud traces
+```
+
+Production invariants:
+
+```text
+public API /metrics → 404
+API metrics          → private :9090
+consumer metrics     → private :9091
+application OTLP     → private Alloy :4317
+Alloy public domain  → none
+```
+
+Production validation confirmed:
+
+- API and consumer metrics were available through the private telemetry path
+- consumer lag was zero in the healthy state
+- consumer failures were zero in the healthy state
+- a real redirect incremented the consumer processed counter
+- a distributed trace crossed API → Kafka → consumer → PostgreSQL persistence
+- an unreachable OTLP destination did not make the API or consumer unavailable
+
+The production fault test establishes telemetry fail-open behavior. It does not establish lossless telemetry delivery while the exporter destination is unavailable.
+
+See:
+
+- [Production deployment and operations](production-deployment.md)
+- [Production validation](production-validation.md)
 
 ## Operational Principles
 
