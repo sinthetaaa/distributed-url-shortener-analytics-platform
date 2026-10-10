@@ -304,7 +304,7 @@ See [Production Hardening & CI](docs/production-hardening.md).
 
 ## Project Status
 
-**Phase 15 — Deployment: in progress**
+**Phase 15 — Deployment: complete**
 
 Completed deployment milestones include:
 
@@ -322,25 +322,15 @@ Completed deployment milestones include:
 - CD/deployment verification automation
 - production deployment and operations runbook
 
-Completed documentation milestone:
+Final Phase 15 milestones:
 
 ```text
-15BB — README product update
+15BB — README product update              COMPLETE
+15BC — Final validation                   COMPLETE
+15BD — Final commit & Phase 15 lock       COMPLETE
 ```
 
-Current milestone:
-
-```text
-15BC — Final validation
-```
-
-Remaining Phase 15 milestone after validation:
-
-```text
-15BD — Final commit & Phase 15 lock
-```
-
-After Phase 15:
+Next:
 
 ```text
 Phase 16 — Benchmark/report
