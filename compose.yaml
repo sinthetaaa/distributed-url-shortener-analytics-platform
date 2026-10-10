@@ -85,6 +85,7 @@ services:
       - no-new-privileges:true
     environment:
       PORT: "8080"
+      API_METRICS_ADDR: ":9090"
       DATABASE_URL: "postgres://shortscale:shortscale@postgres:5432/shortscale?sslmode=disable"
       REDIS_ADDR: "redis:6379"
       KAFKA_BROKERS: "kafka:19092"
@@ -92,6 +93,7 @@ services:
       OTEL_EXPORTER_OTLP_INSECURE: "true"
     expose:
       - "8080"
+      - "9090"
     stop_grace_period: 25s
     depends_on:
       postgres:

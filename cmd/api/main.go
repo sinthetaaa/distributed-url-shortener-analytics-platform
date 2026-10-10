@@ -24,8 +24,10 @@ import (
 
 const (
 	urlCacheTTL                      = time.Hour
+	apiMetricsShutdownTimeout        = 2 * time.Second
 	redirectAnalyticsShutdownTimeout = 2 * time.Second
 	tracingShutdownTimeout           = 5 * time.Second
+	defaultAPIMetricsAddr            = ":9090"
 )
 
 type config struct {
@@ -164,6 +166,34 @@ func main() {
 
 	tracedHandler := newTracedHTTPHandler(router)
 
+	metricsAddr := os.Getenv("API_METRICS_ADDR")
+	if metricsAddr == "" {
+		metricsAddr = defaultAPIMetricsAddr
+	}
+
+	metricsServer := &http.Server{
+		Addr:              metricsAddr,
+		Handler:           metrics.Handler(),
+		ReadHeaderTimeout: 2 * time.Second,
+	}
+
+	go func() {
+		logger.Info(
+			"starting ShortScale API metrics server",
+			"addr",
+			metricsAddr,
+		)
+
+		if err := metricsServer.ListenAndServe(); err != nil &&
+			!errors.Is(err, http.ErrServerClosed) {
+			logger.Warn(
+				"API metrics server stopped with error; continuing without metrics endpoint",
+				"error",
+				err,
+			)
+		}
+	}()
+
 	server := &http.Server{
 		Addr:    addr,
 		Handler: tracedHandler,
@@ -199,6 +229,20 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("graceful shutdown failed", "error", err)
 		os.Exit(1)
+	}
+
+	metricsShutdownCtx, metricsShutdownCancel := context.WithTimeout(
+		context.Background(),
+		apiMetricsShutdownTimeout,
+	)
+	defer metricsShutdownCancel()
+
+	if err := metricsServer.Shutdown(metricsShutdownCtx); err != nil {
+		logger.Warn(
+			"failed to shut down API metrics server",
+			"error",
+			err,
+		)
 	}
 
 	analyticsShutdownCtx, analyticsShutdownCancel := context.WithTimeout(
@@ -373,7 +417,6 @@ func newRouterWithDependenciesMetricsAndAuth(
 
 	if metrics != nil {
 		router.Use(metrics.HTTPMiddleware)
-		router.Handle("/metrics", metrics.Handler())
 	}
 
 	router.Get("/health/live", func(w http.ResponseWriter, r *http.Request) {
