@@ -1,0 +1,61 @@
+name: Deployment Verification
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: read
+
+concurrency:
+  group: deployment-verification-production
+  cancel-in-progress: true
+
+jobs:
+  verify-production:
+    name: Verify production deployment
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      GITHUB_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out deployed commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+
+      - name: Wait for Railway and Vercel deployments
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: .github/scripts/wait-for-platform-deployments.sh
+
+      - name: Verify production
+        run: .github/scripts/production-smoke.sh
+
+      - name: Write verification summary
+        if: success()
+        run: |
+          {
+            echo '## ShortScale production deployment'
+            echo
+            echo "- Commit: \`$DEPLOY_SHA\`"
+            echo '- Railway API: verified'
+            echo '- Railway analytics consumer: verified'
+            echo '- Railway observability: verified'
+            echo '- Vercel frontend: verified'
+            echo '- Production smoke checks: passed'
+          } >> "$GITHUB_STEP_SUMMARY"
