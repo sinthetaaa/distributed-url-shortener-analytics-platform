@@ -1111,4 +1111,4 @@ The report connects:
 - current scaling boundaries
 - intentionally deferred complexity
 
-Phase 16G should now validate that repository-facing claims remain consistent with this report, the Phase 16 evidence matrix, the scaling-boundary analysis, and the reproducibility rules before Phase 16 is finally locked.
+Phase 16G subsequently validated repository-facing claims and benchmark reproducibility against this report, the Phase 16 evidence matrix, and the scaling-boundary analysis. Phase 16H closes the phase with final repository validation, successful CI and deployment verification of the validated pre-lock commit, benchmark-fixture cleanup, and the final lock commit.

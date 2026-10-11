@@ -307,7 +307,7 @@ See [Production Hardening & CI](docs/production-hardening.md).
 
 Production deployment, managed infrastructure integration, observability, security validation, failure testing, deployment verification, and the production operations runbook are complete.
 
-**Phase 16 — Final Benchmark & Architecture Report: final validation**
+**Phase 16 — Final Benchmark & Architecture Report: complete**
 
 ```text
 16A — Benchmark inventory and evidence audit        COMPLETE
@@ -316,9 +316,11 @@ Production deployment, managed infrastructure integration, observability, securi
 16D — Consolidated benchmark evidence               COMPLETE
 16E — Bottleneck and scaling-boundary analysis      COMPLETE
 16F — Final engineering/architecture report         COMPLETE
-16G — Claims and reproducibility validation         CURRENT
-16H — Final commit, CI verification, and phase lock PENDING
+16G — Claims and reproducibility validation         COMPLETE
+16H — Final commit, CI verification, and phase lock COMPLETE
 ```
+
+Phase 16 is complete. Final repository validation passed, the Phase 16 benchmark fixture was removed, and the benchmark/report package is locked for portfolio and interview work.
 
 Next:
 
