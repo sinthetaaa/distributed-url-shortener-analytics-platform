@@ -94,7 +94,7 @@ PostgreSQL user insert
 Current password constraints are:
 
 ```text
-minimum length: 8 characters
+minimum length: 8 bytes
 maximum length: 72 bytes
 ```
 
