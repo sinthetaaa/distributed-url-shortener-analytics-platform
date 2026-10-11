@@ -343,12 +343,11 @@ Measure the isolated cost of adding the limiter to an otherwise minimal successf
 
 This benchmark does not execute URL creation or PostgreSQL work.
 
-It compares the baseline handler
+It compares:
 
-Local token bucket middleware
-Redis + Lua token bucket middleware
-
-```
+1. baseline handler only
+2. process-local token bucket middleware
+3. Redis + Lua token bucket middleware
 
 The benchmark uses an intentionally huge capacity and refill rate so no request is rejected during the measurement.
 

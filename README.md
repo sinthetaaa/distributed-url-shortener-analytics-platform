@@ -72,18 +72,16 @@ Vercel frontend
   |
   | same-origin API proxy
   v
-Railway API
-  |
-  +-------------------+
-  |                   |
-  v                   v
-Upstash Redis       Aiven Kafka
-                        |
-                        v
-               Railway analytics consumer
-                        |
-                        v
-                  Neon PostgreSQL
+Railway API ------------------------> Neon PostgreSQL
+  |                                     ^ source of truth
+  |                                     |
+  +--> Upstash Redis                    |
+  |    cache + limiter                  |
+  |                                     |
+  +--> Aiven Kafka                      |
+          |                             |
+          v                             |
+  Railway analytics consumer -----------+
 
 API + consumer
       |

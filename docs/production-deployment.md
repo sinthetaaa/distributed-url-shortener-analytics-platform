@@ -25,18 +25,16 @@ sscale.vercel.app
   |
   | same-origin API proxy
   v
-Railway: shortscale-api
-  |
-  +-------------------+
-  |                   |
-  v                   v
-Upstash Redis       Aiven Kafka
-(cache + limiter)      |
-                       v
-              Railway analytics consumer
-                       |
-                       v
-                  Neon PostgreSQL
+Railway: shortscale-api -----------------> Neon PostgreSQL
+  |                                         ^ source of truth
+  |                                         |
+  +--> Upstash Redis                        |
+  |    (cache + limiter)                    |
+  |                                         |
+  +--> Aiven Kafka                          |
+          |                                 |
+          v                                 |
+  Railway analytics consumer ---------------+
 
 shortscale-api ------------------+
                                  |

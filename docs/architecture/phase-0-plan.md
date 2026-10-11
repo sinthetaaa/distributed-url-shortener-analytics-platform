@@ -1,5 +1,7 @@
 # Phase 0 — Project Definition & Engineering Plan
 
+> **Historical scope note:** this document preserves the original Phase 0 plan and the assumptions that existed before implementation. Later phases intentionally evolved beyond parts of the initial scope, including authentication, the frontend, analytics storage, observability, resilience, and production deployment. For the current deployed state, use the root README and the production documentation.
+
 ## 1. Project Identity
 
 **Project name:** ShortScale

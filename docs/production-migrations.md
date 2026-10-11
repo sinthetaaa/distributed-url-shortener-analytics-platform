@@ -73,7 +73,7 @@ Do not place the connection string directly in a shell command because that can 
 Load it interactively:
 
     printf 'Paste Neon production DATABASE_URL: '
-    read -s DATABASE_URL
+    IFS= read -rs DATABASE_URL
     printf '\n'
     export DATABASE_URL
 

@@ -9,13 +9,11 @@ It complements the local benchmark and failure-engineering reports. The measurem
 ```text
 Vercel frontend
       ↓
-Railway API
-   ↙       ↘
-Upstash   Aiven Kafka
- Redis         ↓
-         Railway analytics consumer
-                  ↓
-             Neon PostgreSQL
+Railway API ─────────────────────→ Neon PostgreSQL
+   ↓                 ↓                    ↑
+Upstash Redis     Aiven Kafka             |
+                     ↓                    |
+            Railway analytics consumer ───+
 
 Railway API + consumer
           ↓ private OTLP
