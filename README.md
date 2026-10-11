@@ -318,6 +318,5 @@ Detailed architecture, engineering decisions, benchmarks, observability, deploym
 - [Database scaling benchmarks and distributed-system trade-offs](docs/database-scaling.md)
 - [Failure engineering and resilience](docs/resilience.md)
 - [Observability architecture, metrics, and tracing](docs/observability.md)
-- [Architecture notes](docs/architecture/)
 - [Engineering decisions](docs/decisions/)
 - [Performance experiments](docs/performance/)
