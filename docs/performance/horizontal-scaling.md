@@ -4,7 +4,7 @@ Date: 2026-10-07
 
 ## Purpose
 
-Phase 7 measured ShortScale after moving from one API process to multiple stateless Go API replicas behind Nginx.
+This benchmark measured ShortScale after moving from one API process to multiple stateless Go API replicas behind Nginx.
 
 The experiments separated four concerns:
 
@@ -386,9 +386,9 @@ produced 3 DB lookups
 
 ShortScale therefore keeps process-local `singleflight` and does not currently add a distributed locking mechanism.
 
-## Overall Phase 7 Findings
+## Overall Findings
 
-Phase 7 demonstrated that:
+The horizontal-scaling experiments demonstrated that:
 
 1. the API can run as multiple stateless replicas
 2. PostgreSQL and Redis can be shared by those replicas

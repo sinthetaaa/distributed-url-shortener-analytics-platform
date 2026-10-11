@@ -4,7 +4,7 @@ Date: 2026-10-07
 
 ## Purpose
 
-Phase 9 introduced asynchronous redirect analytics and tested failure isolation, partitioning, restart behavior, duplicate delivery, and redirect-path overhead.
+The asynchronous-analytics work introduced Kafka-backed redirect analytics and tested failure isolation, partitioning, restart behavior, duplicate delivery, and redirect-path overhead.
 
 These are local architecture experiments and comparative measurements, not production capacity claims.
 
@@ -269,7 +269,7 @@ The benchmark ran on one Apple M4 development machine, with load generation on t
 
 These measurements are useful for comparative architecture decisions, not production sizing.
 
-## Phase 9 Conclusions
+## Conclusions
 
 ```text
 Kafka outage

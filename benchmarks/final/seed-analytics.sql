@@ -15,7 +15,7 @@ INSERT INTO redirect_events (
     occurred_at
 )
 SELECT
-    'phase16-' || :'code' || '-' || lpad(gs::text, 6, '0'),
+    'benchmark-' || :'code' || '-' || lpad(gs::text, 6, '0'),
     'redirect',
     :'code',
     date_trunc('day', now())

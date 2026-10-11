@@ -215,7 +215,7 @@ The current cache-aside implementation is small and observable.
 - high traffic can move the hot-key problem from PostgreSQL to Redis
 - cache stampedes are possible when popular entries expire simultaneously
 
-The hot-key and cache-failure behavior will be explored further in later phases.
+Hot-key and cache-failure behavior is documented separately in the cache-resilience decision and benchmark reports.
 
 ## Measured Evidence
 
@@ -249,7 +249,7 @@ This demonstrates that Redis both reduced tail latency and removed repeated hot-
 
 ## Follow-Up
 
-Future phases should evaluate:
+Future work should evaluate:
 
 - hot-key behavior
 - cache stampedes

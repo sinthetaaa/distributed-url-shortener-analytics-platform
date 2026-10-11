@@ -4,9 +4,9 @@
 
 This report evaluates the effect of adding Redis to ShortScale's redirect hot path.
 
-Phase 4 established the PostgreSQL-only baseline.
+The PostgreSQL-only redirect benchmark established the baseline.
 
-Phase 5 introduced a resilient cache-aside layer:
+The next measured architecture introduced a resilient Redis cache-aside layer:
 
 ~~~text
 GET /{shortCode}
@@ -58,7 +58,7 @@ The workload repeatedly requests:
 
 which resolves to:
 
-`https://example.com/shortscale-phase3`
+`https://example.com/shortscale-baseline`
 
 Redirect following is disabled so the benchmark measures ShortScale rather than the destination website.
 
@@ -371,7 +371,7 @@ The cache provides:
 - bounded cache failure latency
 - no correctness dependency on Redis persistence
 
-The engineering cycle for this phase was:
+The engineering cycle for this experiment was:
 
 ~~~text
 Measure PostgreSQL

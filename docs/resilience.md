@@ -1,6 +1,6 @@
 # Failure Engineering & Resilience
 
-Phase 12 validates how ShortScale behaves when individual infrastructure components fail, when processes crash, and when services receive graceful termination signals.
+This document validates how ShortScale behaves when individual infrastructure components fail, when processes crash, and when services receive graceful termination signals.
 
 The goal is not to claim perfect availability. The goal is to make failure behavior explicit, bounded, measurable, and recoverable.
 
@@ -31,7 +31,7 @@ ShortScale follows several failure-engineering principles:
 | API SIGTERM | Accepted HTTP work completes | Buffered analytics queue drains before process exit | Replica can be recreated | Zero accepted-event loss observed |
 | Consumer SIGTERM | Redirects unaffected | Unfinished Kafka work remains uncommitted | Restarted consumer redelivers and persists | Zero analytics loss observed |
 
-## 12A — API Replica Crash
+## API Replica Crash
 
 ### Experiment
 
@@ -73,7 +73,7 @@ Horizontal API replication plus Nginx removed a single API process as a redirect
 
 The experiment also demonstrated that process-local cumulative metrics cannot be naively compared across a changing replica set.
 
-## 12B — Redis Outage
+## Redis Outage
 
 ### Experiment
 
@@ -107,7 +107,7 @@ Redis is treated as an optimization rather than a redirect correctness dependenc
 
 The circuit breaker substantially reduced repeated traffic toward an unavailable Redis instance while preserving PostgreSQL fallback.
 
-## 12C — Kafka Outage and Bounded Analytics Degradation
+## Kafka Outage and Bounded Analytics Degradation
 
 ### Initial failure discovery
 
@@ -178,7 +178,7 @@ Analytics degradation is deliberately bounded by finite queues rather than unbou
 
 The experiment also produced a concrete resilience improvement: transient Kafka polling failures no longer terminate the analytics consumer.
 
-## 12D — Analytics Consumer Crash
+## Analytics Consumer Crash
 
 ### Experiment
 
@@ -209,7 +209,7 @@ Kafka successfully acts as a durable decoupling layer between redirect traffic a
 
 A consumer crash caused backlog, not analytics loss.
 
-## 12E — PostgreSQL Outage
+## PostgreSQL Outage
 
 ### API behavior
 
@@ -303,7 +303,7 @@ ShortScale now separates availability according to dependency role:
 
 The experiment recovered all 1,000 analytics events with zero loss.
 
-## 12F — Graceful Shutdown and In-Flight Work
+## Graceful Shutdown and In-Flight Work
 
 ### API graceful shutdown
 
@@ -388,7 +388,7 @@ Docker inspection confirmed the containers received stop timeouts of 25 and 15 s
 
 ## Resilience Changes Produced by Failure Testing
 
-Phase 12 was not only observational.
+Failure testing was not only observational.
 
 Two runtime experiments uncovered real defects and produced code changes.
 
@@ -503,7 +503,7 @@ Kafka record remains uncommitted
 → offset commits
 ```
 
-## What Phase 12 Demonstrated
+## What Failure Testing Demonstrated
 
 The failure experiments established that ShortScale now has explicit behavior for:
 
@@ -526,19 +526,17 @@ Instead, its guarantees are intentionally scoped:
 - Kafka offsets are committed only after successful processing
 - graceful shutdown preserves accepted work under the tested healthy-dependency conditions
 
-## Phase 12 Result
+## Result
 
-**Failure Engineering & Resilience: complete.**
+Failure testing converted several implicit assumptions into measured guarantees and turned two discovered dependency failures into tested recovery behavior.
 
-Phase 12 converted several implicit assumptions into measured guarantees and turned two discovered dependency failures into tested recovery behavior.
 
-The next phase focuses on database scaling and distributed-system trade-off analysis rather than adding infrastructure without evidence.
 
-## Production validation after Phase 12
+## Production Validation
 
-Phase 12 established the controlled local failure model.
+Controlled local failure testing established the failure model.
 
-Phase 15 later tested a subset of those failure boundaries in the deployed system without intentionally breaking the production database.
+Production validation later tested a subset of those failure boundaries in the deployed system without intentionally breaking the production database.
 
 ### Production analytics-consumer outage
 
@@ -605,6 +603,6 @@ The production Redis configuration was then restored successfully.
 
 Neon/PostgreSQL was not intentionally failed in production because it is the authoritative datastore and a critical dependency.
 
-The detailed PostgreSQL outage behavior in this document remains based on the controlled Phase 12 environment.
+The detailed PostgreSQL outage behavior in this document remains based on the controlled local environment.
 
-See [Production validation](production-validation.md) for the consolidated Phase 15 evidence and limitations.
+See [Production validation](production-validation.md) for the consolidated production evidence and limitations.

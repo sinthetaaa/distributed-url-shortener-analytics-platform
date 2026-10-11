@@ -20,7 +20,7 @@ function positiveIntegerFromEnv(name, defaultValue) {
 const baseURL = __ENV.BASE_URL || 'http://127.0.0.1:8080';
 const shortCode = __ENV.SHORT_CODE || '3ZB9CeC';
 const expectedLocation =
-  __ENV.EXPECTED_LOCATION || 'https://example.com/shortscale-phase3';
+  __ENV.EXPECTED_LOCATION || 'https://example.com/shortscale-baseline';
 
 const rate = positiveIntegerFromEnv('RATE', 100);
 const duration = __ENV.DURATION || '30s';

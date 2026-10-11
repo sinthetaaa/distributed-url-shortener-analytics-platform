@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SCRIPT_DIR="$ROOT_DIR/benchmarks/phase16"
-RUNTIME_DIR="${TMPDIR:-/tmp}/shortscale-phase16"
+SCRIPT_DIR="$ROOT_DIR/benchmarks/final"
+RUNTIME_DIR="${TMPDIR:-/tmp}/shortscale-final-benchmark"
 STATE_FILE="$RUNTIME_DIR/fixture.env"
 COOKIE_JAR="$RUNTIME_DIR/cookies.txt"
 BASE_URL="${BASE_URL:-http://127.0.0.1:18080}"
@@ -59,8 +59,8 @@ json_short_code() {
 
 setup_fixture() {
   if [ -e "$STATE_FILE" ]; then
-    printf 'Phase 16 fixture state already exists: %s\n' "$STATE_FILE" >&2
-    printf 'Run: benchmarks/phase16/fixture.sh cleanup\n' >&2
+    printf 'Final benchmark fixture state already exists: %s\n' "$STATE_FILE" >&2
+    printf 'Run: benchmarks/final/fixture.sh cleanup\n' >&2
     exit 1
   fi
 
@@ -91,8 +91,8 @@ setup_fixture() {
   local mismatch_total
 
   stamp="$(date +%s)-$$"
-  email="phase16-${stamp}@example.test"
-  password="P16-$(openssl rand -hex 16)"
+  email="benchmark-${stamp}@example.test"
+  password="Bench-9A-$(openssl rand -hex 16)"
 
   auth_payload="$(printf '{"email":"%s","password":"%s"}' "$email" "$password")"
   post_json_expect 201 "/api/v1/auth/register" "$auth_payload" >/dev/null
@@ -109,9 +109,9 @@ setup_fixture() {
     exit 1
   fi
 
-  redirect_destination="https://example.com/shortscale-phase16-redirect"
-  analytics_destination="https://example.com/shortscale-phase16-analytics"
-  async_destination="https://example.com/shortscale-phase16-async"
+  redirect_destination="https://example.com/shortscale-final-benchmark-redirect"
+  analytics_destination="https://example.com/shortscale-final-benchmark-analytics"
+  async_destination="https://example.com/shortscale-final-benchmark-async"
 
   response="$(
     post_json_expect \
@@ -172,7 +172,7 @@ EOF
 
   chmod 600 "$STATE_FILE"
 
-  printf '\nPhase 16 fixture created.\n'
+  printf '\nFinal benchmark fixture created.\n'
   printf 'State file:           %s\n' "$STATE_FILE"
   printf 'Redirect short code:  %s\n' "$redirect_code"
   printf 'Analytics short code: %s\n' "$analytics_code"
@@ -185,7 +185,7 @@ EOF
 
 cleanup_fixture() {
   if [ ! -f "$STATE_FILE" ]; then
-    printf 'No Phase 16 fixture state found; nothing to clean.\n'
+    printf 'No Final benchmark fixture state found; nothing to clean.\n'
     exit 0
   fi
 
@@ -213,12 +213,12 @@ cleanup_fixture() {
 
   rm -rf "$RUNTIME_DIR"
 
-  printf 'Phase 16 fixture cleaned.\n'
+  printf 'Final benchmark fixture cleaned.\n'
 }
 
 show_fixture() {
   if [ ! -f "$STATE_FILE" ]; then
-    printf 'No Phase 16 fixture state found.\n' >&2
+    printf 'No Final benchmark fixture state found.\n' >&2
     exit 1
   fi
 

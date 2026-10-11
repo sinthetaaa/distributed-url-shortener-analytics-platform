@@ -4,9 +4,9 @@ Date: 2026-10-07
 
 ## Purpose
 
-Phase 10 exposed persisted redirect analytics through a bounded HTTP API and validated the complete asynchronous analytics pipeline.
+The initial analytics API exposed persisted redirect analytics through a bounded HTTP interface and validated the complete asynchronous analytics pipeline.
 
-> **Historical status:** This document preserves the Phase 10 architecture and measurements. Statements below that describe pre-aggregation or lifetime-summary optimization as future work were accurate at Phase 10. Later phases implemented those optimizations, and Phase 16 re-benchmarked the optimized analytics path. See `final-benchmark-evidence.md`, `bottlenecks-and-scaling-boundaries.md`, and `../final-engineering-report.md` for the final measured state.
+> **Historical status:** This document preserves the original raw-event analytics architecture and measurements. Statements below that describe pre-aggregation or lifetime-summary optimization as future work were accurate for that implementation. Later engineering work implemented those optimizations and re-benchmarked the optimized analytics path. See `final-benchmark-evidence.md`, `bottlenecks-and-scaling-boundaries.md`, and `../final-engineering-report.md` for the final measured state.
 
 The API provides:
 
@@ -62,7 +62,7 @@ analytics SQL queries
 GET /api/v1/urls/{shortCode}/analytics
 ```
 
-The analytics read API does not alter the redirect-path availability guarantees established in Phase 9.
+The analytics read API does not alter the redirect-path availability guarantees established by the asynchronous-analytics design.
 
 ## API Semantics
 
@@ -162,7 +162,7 @@ The same live API also returned the expected HTTP 404 for an unknown short code 
 
 ## Existing Analytics Index
 
-Phase 9 created:
+The asynchronous-analytics implementation created:
 
 ```sql
 CREATE INDEX redirect_events_short_code_occurred_at_idx
@@ -353,9 +353,9 @@ These could be maintained asynchronously by the analytics consumer.
 
 That optimization is deliberately not implemented yet because current measurements do not justify the extra consistency and operational complexity.
 
-## Phase 10 Conclusions
+## Conclusions
 
-Phase 10 established that:
+The original analytics API work established that:
 
 - analytics can be queried through a stable HTTP contract
 - nonexistent URLs are distinguished from URLs with zero redirects

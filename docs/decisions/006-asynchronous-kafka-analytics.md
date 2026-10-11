@@ -128,7 +128,7 @@ availability > analytics completeness
 
 ## Background Publishing
 
-At the end of Phase 9, one background worker drained the queue per API process with a 500 ms per-publish timeout. The later production implementation retained one bounded worker/queue per API process but increased the application publish timeout to 5 seconds.
+The initial asynchronous-analytics implementation used one background worker per API process with a 500 ms per-publish timeout. The later production implementation retained one bounded worker/queue per API process but increased the application publish timeout to 5 seconds.
 
 Failed publishes are logged and are not synchronously retried by the redirect handler. The worker model also avoids creating one goroutine per request.
 
@@ -214,13 +214,13 @@ ingested_at:      unchanged
 
 This experimentally verified duplicate-safe side effects under at-least-once delivery.
 
-## Phase 9 Consumer Error Policy
+## Initial Consumer Error Policy
 
-At the end of Phase 9, malformed events, processing failures, and commit failures stopped the consumer loop. Poison records were not silently skipped and there was no dead-letter topic.
+In the initial consumer implementation, malformed events, processing failures, and commit failures stopped the consumer loop. Poison records were not silently skipped and there was no dead-letter topic.
 
 ## Redirect Performance
 
-Phase 9 compared the same current API binary with analytics disabled and enabled.
+The asynchronous-analytics benchmark compared the same API binary with analytics disabled and enabled.
 
 At 500 and 3000 target requests per second, there were no analytics drops and no HTTP failures.
 
@@ -288,9 +288,9 @@ Rejected because the Kafka-to-PostgreSQL boundary is not one atomic transaction.
 
 Revisit this decision if analytics loss becomes unacceptable, normal traffic causes sustained drops, producer batching or native async publishing is required, consumer throughput needs multiple instances, partition count must increase, hot short codes create skew, dead-letter handling becomes necessary, multi-broker durability is introduced, or event schema compatibility needs stronger management.
 
-## Resilience evolution after Phase 9
+## Resilience Evolution
 
-Phase 12 failure testing changed the consumer behavior after real dependency failures exposed two resilience gaps.
+Failure testing changed the consumer behavior after real dependency failures exposed two resilience gaps.
 
 ### Transient Kafka polling failures
 
@@ -335,7 +335,7 @@ Decode errors and Kafka commit failures remain distinct fatal correctness stages
 
 ### Production consumer-outage validation
 
-Phase 15 production testing removed the analytics consumer while redirects continued.
+Production failure testing removed the analytics consumer while redirects continued.
 
 Five accepted redirects were not reflected while the worker was absent, then appeared after the worker was restored and drained the Kafka backlog.
 

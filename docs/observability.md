@@ -2,7 +2,7 @@
 
 ShortScale uses metrics, dashboards, and distributed traces to observe the API, cache path, asynchronous redirect analytics pipeline, Kafka consumer, and PostgreSQL persistence without making telemetry a dependency of request availability.
 
-> **Scope note:** the architecture and experiments in the main Phase 11 sections below record the local observability stack that was used when Phase 11 was completed. Production later evolved to Grafana Alloy on Railway forwarding private application metrics and OTLP traces to Grafana Cloud. The production topology is recorded in the **Production evolution after Phase 11** section below and in the deployment runbook.
+> **Scope note:** the architecture and experiments below record the local observability stack originally used to establish the metrics and tracing model. Production later evolved to Grafana Alloy on Railway forwarding private application metrics and OTLP traces to Grafana Cloud. The production topology is recorded in the **Production Evolution** section below and in the deployment runbook.
 
 ## Architecture
 
@@ -264,11 +264,11 @@ The client latency includes local Nginx, TCP connection setup, scheduling, and c
 
 The Collector-outage and healthy-stack runs used different request counts, so they are treated as separate resilience/load experiments and not as a controlled tracing-overhead benchmark.
 
-## Production evolution after Phase 11
+## Production Evolution
 
-The Phase 11 local stack used Prometheus, Tempo, and the OpenTelemetry Collector to establish the observability model.
+The original local stack used Prometheus, Tempo, and the OpenTelemetry Collector to establish the observability model.
 
-The deployed Phase 15 topology keeps the same application metrics and OpenTelemetry instrumentation while changing the collection backend:
+The deployed production topology keeps the same application metrics and OpenTelemetry instrumentation while changing the collection backend:
 
 ```text
 Railway API :9090 -----------+
@@ -319,16 +319,3 @@ ShortScale's observability implementation follows these rules:
 8. Consumer lag is measured from Kafka group state.
 9. Runtime experiments validate behavior instead of relying only on unit tests.
 10. Load results are reported only from measurements actually produced by the local environment.
-
-## Current Phase 11 Status
-
-- 11A Prometheus metrics foundation — complete
-- 11B HTTP metrics and `/metrics` — complete
-- 11C domain metrics — complete
-- 11D analytics-consumer metrics — complete
-- 11E Prometheus scrape topology — complete
-- 11F Grafana dashboard and Kafka lag — complete
-- 11G OpenTelemetry Collector, Tempo, and tracing foundation — complete
-- 11H important request and Kafka paths — complete
-- 11I observability failure and load experiments — complete
-- 11J documentation and final review — complete

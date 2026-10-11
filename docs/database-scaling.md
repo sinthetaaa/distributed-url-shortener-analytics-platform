@@ -1,14 +1,14 @@
 # Database Scaling & Distributed-System Analysis
 
-Phase 13 evaluates how ShortScale's PostgreSQL-backed storage behaves as analytics volume grows and which scaling techniques are actually justified by measured bottlenecks.
+This document evaluates how ShortScale's PostgreSQL-backed storage behaves as analytics volume grows and which scaling techniques are actually justified by measured bottlenecks.
 
-The phase deliberately avoids adding replicas, partitions, or shards only for architectural appearance.
+The analysis deliberately avoids adding replicas, partitions, or shards only for architectural appearance.
 
 The engineering rule remains:
 
 **Measure → identify the real bottleneck → apply the smallest useful architectural change → measure again.**
 
-## Phase 13 Decisions
+## Scaling Decisions
 
 | Technique | Decision | Reason |
 | --- | --- | --- |
@@ -21,9 +21,9 @@ The engineering rule remains:
 | Event-ID sharding | Rejected for current scale | Writes balance well but per-code analytics fan out to every shard |
 | Application-level database sharding | Not yet | Current primary has not reached a measured storage/write ceiling |
 
-## 13A — PostgreSQL Baseline and Query-Plan Audit
+## PostgreSQL Baseline and Query-Plan Audit
 
-Phase 13 began by measuring the existing production-style database rather than changing it.
+The work began by measuring the existing production-style database rather than changing it.
 
 At the time of the baseline:
 
@@ -86,7 +86,7 @@ event growth
 
 rather than URL lookup, connection count, or table maintenance.
 
-## 13B — Controlled Dataset Growth
+## Controlled Dataset Growth
 
 A disposable table using the production-relevant raw-event schema and indexes was grown through:
 
@@ -156,9 +156,9 @@ At one million rows, the query processed approximately 580,000 events for the ho
 
 The experiment showed that hot-key raw aggregation was the dominant scaling problem.
 
-## 13C — Query and Index Trade-Off Analysis
+## Query and Index Trade-Off Analysis
 
-Phase 13C tested whether conventional SQL/index tuning could solve the hot daily aggregation before changing the data model.
+The query and index analysis tested whether conventional SQL/index tuning could solve the hot daily aggregation before changing the data model.
 
 Four approaches were compared.
 
@@ -218,9 +218,9 @@ More importantly, both approaches still scaled with raw event volume.
 
 The experiment established that the next improvement needed to change the read model rather than continuously optimize raw aggregation.
 
-## 13D — Daily Analytics Pre-Aggregation
+## Daily Analytics Pre-Aggregation
 
-Phase 13D compared raw-event aggregation with a compact daily rollup.
+The pre-aggregation benchmark compared raw-event aggregation with a compact daily rollup.
 
 The benchmark used:
 
@@ -358,11 +358,11 @@ Production commit:
 
 `3803954` — `feat: pre-aggregate daily redirect analytics`
 
-## 13E — Read Scaling and Replication Decision
+## Read Scaling and Replication Decision
 
-After daily pre-aggregation, Phase 13E tested whether analytics reads still created enough primary-database contention to justify a PostgreSQL read replica.
+After daily pre-aggregation, read-scaling tests measured whether analytics traffic still created enough primary-database contention to justify a PostgreSQL read replica.
 
-### 13E1 — Single-primary mixed workload
+### Single-Primary Mixed Workload
 
 The workload compared:
 
@@ -407,7 +407,7 @@ The remaining expensive operation was the lifetime summary over 115,438 raw hot-
 ~11.3 ms
 ```
 
-### 13E2 — Lifetime-summary rewrite
+### Lifetime-Summary Rewrite
 
 Instead of computing:
 
@@ -448,7 +448,7 @@ Hot-key execution improved approximately:
 
 or about a 100× improvement.
 
-### 13E3 — Production optimization
+### Production Optimization
 
 The lifetime-summary rewrite was deployed and the exact mixed workload was repeated.
 
@@ -522,9 +522,9 @@ A replica should be revisited when one or more are measured:
 - analytics availability requires isolation from primary write workloads
 - a documented stale-read tolerance exists for analytics endpoints
 
-## 13F — Partitioning vs Sharding
+## Partitioning vs Sharding
 
-### 13F1 — Time/range partitioning
+### Time/Range Partitioning
 
 A one-million-event unpartitioned table was compared with weekly range partitions on `occurred_at`.
 
@@ -631,7 +631,7 @@ Range partitioning was **not adopted**.
 
 It should be reconsidered when retention, vacuuming, index maintenance, or historical raw-event storage becomes an operational bottleneck large enough to justify redesigning global idempotency.
 
-### 13F2 — Logical sharding
+### Logical Sharding
 
 The sharding experiment evaluated two candidate routing keys:
 
@@ -730,7 +730,7 @@ At current scale, introducing shard routing, cross-shard analytics, rebalance op
 
 ## Current Database Architecture
 
-After Phase 13:
+After the database-scaling work:
 
 ```text
                          ┌───────────────┐
@@ -811,9 +811,9 @@ Revisit only when:
 - a deliberate solution exists for global event deduplication
 - cross-shard analytics semantics are defined
 
-## What Phase 13 Demonstrated
+## What the Database-Scaling Work Demonstrated
 
-Phase 13 changed the system where measurements justified change and explicitly rejected infrastructure where they did not.
+The database-scaling work changed the system where measurements justified change and explicitly rejected infrastructure where measurements did not justify it.
 
 Implemented:
 
@@ -837,10 +837,6 @@ This is the intended ShortScale engineering philosophy:
 
 > Distributed-system complexity is introduced only after simpler designs fail under measured load.
 
-## Phase 13 Result
-
-**Database Scaling & Distributed-System Analysis: complete.**
+## Result
 
 The database architecture now matches the measured workload rather than an imagined future scale.
-
-The next phase focuses on production hardening and continuous integration.

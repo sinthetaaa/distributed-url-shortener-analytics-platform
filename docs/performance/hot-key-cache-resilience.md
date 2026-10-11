@@ -2,17 +2,17 @@
 
 ## Purpose
 
-This report records the measurements used to design Phase 6 of ShortScale.
+This report records the measurements used to design ShortScale's hot-key and cache-failure resilience.
 
-Phase 5 demonstrated that Redis materially improved the hot redirect path.
+The initial Redis benchmark demonstrated that Redis materially improved the hot redirect path.
 
-Phase 6 asks what happens when the cache is stressed by:
+The resilience experiments ask what happens when the cache is stressed by:
 
 - many concurrent requests for one uncached hot URL
 - synchronized cache expiry
 - Redis unavailability
 
-The phase follows the same engineering sequence used elsewhere in ShortScale:
+This report follows the same engineering sequence used elsewhere in ShortScale:
 
 ~~~text
 reproduce
@@ -249,7 +249,7 @@ Temporary database rows and Redis keys were removed after the experiment.
 
 ## Experiment 3: Redis Outage Without Circuit Breaker
 
-Phase 5 had already configured Redis to fail quickly rather than performing long internal retry sequences.
+The initial Redis integration had already configured Redis to fail quickly rather than performing long internal retry sequences.
 
 The remaining question was whether repeated Redis failures under traffic were still expensive.
 
@@ -440,7 +440,7 @@ Redis GETs across recovery requests = 2
 
 This demonstrates that a successful half-open probe closes the circuit and restores Redis to the redirect read path automatically.
 
-## Combined Phase 6 Behavior
+## Combined Cache-Resilience Behavior
 
 The three resilience mechanisms address different dimensions:
 
@@ -494,7 +494,7 @@ periodic half-open probe
 
 ## Engineering Outcome
 
-Phase 6 changed the redirect cache from a simple performance layer into a more resilient dependency boundary.
+The resilience work changed the redirect cache from a simple performance layer into a more resilient dependency boundary.
 
 Measured results:
 
@@ -559,7 +559,7 @@ Later observability work should expose dedicated metrics for:
 
 ## Conclusion
 
-Phase 6 demonstrates a measurement-driven progression:
+The experiments demonstrate a measurement-driven progression:
 
 ~~~text
 observe duplicate DB work

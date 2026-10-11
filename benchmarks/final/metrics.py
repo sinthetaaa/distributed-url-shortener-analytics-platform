@@ -145,7 +145,7 @@ def wait_drained(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Phase 16 Prometheus metric snapshots and drain checks."
+        description="Final benchmark Prometheus metric snapshots and drain checks."
     )
     parser.add_argument(
         "--prometheus",

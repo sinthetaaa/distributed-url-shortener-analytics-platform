@@ -7,7 +7,7 @@
 
 ShortScale runs multiple stateless Go API replicas behind Nginx.
 
-Phase 7 proved that process-local coordination remains process-local after horizontal scaling. Phase 8 applied that lesson to traffic protection.
+The horizontal-scaling experiments proved that process-local coordination remains process-local across API replicas. The rate-limiting work applied that lesson to traffic protection.
 
 The URL-creation endpoint performs durable work:
 
@@ -25,7 +25,7 @@ Without rate limiting, one client can create unbounded write pressure.
 
 The redirect path is different. It is latency-sensitive, heavily cached, and designed for high read throughput. Adding a synchronous distributed limiter to every redirect would place another Redis operation directly on that critical path.
 
-The first Phase 8 implementation therefore protected URL creation and deliberately used process-local state so its distributed limitation could be measured before introducing shared coordination.
+The first rate-limiter implementation therefore protected URL creation and deliberately used process-local state so its distributed limitation could be measured before introducing shared coordination.
 
 ## Decision
 
@@ -232,7 +232,7 @@ This trust boundary matters.
 
 Client-supplied forwarding headers must not be trusted when the API is directly exposed to untrusted traffic.
 
-The Phase 8 public-path experiment also showed that the identity observed through Docker/Nginx was not necessarily loopback even when the request originated from the local development machine.
+The public-path experiment also showed that the identity observed through Docker/Nginx was not necessarily loopback even when the request originated from the local development machine.
 
 Rate limiting by IP is therefore correct only when proxy ownership and header rewriting are understood and controlled.
 
@@ -333,7 +333,7 @@ These are not added until measurements justify the operational complexity.
 
 ## Redirect Endpoint Decision
 
-Phase 8 does not add the same synchronous Redis limiter to `GET /{shortCode}`.
+The design does not add the same synchronous Redis limiter to `GET /{shortCode}`.
 
 The redirect path is the service's critical high-throughput read path.
 
@@ -511,7 +511,7 @@ Revisit this decision if:
 
 ## Authentication-era and production evolution
 
-The original Phase 8 decision predates user authentication.
+The original rate-limiting decision predates user authentication.
 
 Authentication now exists, but the production URL-creation limiter deliberately remains keyed by client IP rather than user ID.
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document is the Phase 16F engineering report for ShortScale.
+This document is the final engineering and architecture report for ShortScale.
 
 It explains how the system evolved from a minimal URL shortener into a deployed distributed backend, which measurements justified each architectural change, which guarantees the final system provides, and where the measured scaling boundaries remain.
 
@@ -485,7 +485,7 @@ Graceful shutdown, bounded retry behavior, circuit breaking, and dependency reco
 
 ### V7 — Pre-aggregated analytics
 
-Phase 10 showed a clear read-scaling problem.
+The original raw-event analytics benchmark showed a clear read-scaling problem.
 
 With 100,000 redirect events, historical API latency grew as the requested window expanded:
 
@@ -613,13 +613,13 @@ The design preserves:
 
 ## Final Benchmark Results
 
-The Phase 16 benchmark measured runtime code locked at:
+The final benchmark measured runtime code locked at:
 
 ```text
 8102b79edaf7e6a40b1ad5bd0b88a5d7474dbaab
 ```
 
-Later Phase 16 commits added methodology, tooling, evidence, and documentation without changing the application runtime under test.
+Later benchmark and documentation commits added methodology, tooling, evidence, and reporting without changing the application runtime under test.
 
 ### FINAL-1 — Completed redirect path
 
@@ -1095,9 +1095,9 @@ validate correctness
 measure again
 ```
 
-## Phase 16F Result
+## Final Engineering Result
 
-Phase 16F consolidates the project into one final engineering narrative.
+This report consolidates the project into one final engineering narrative.
 
 The report connects:
 
@@ -1110,5 +1110,3 @@ The report connects:
 - final benchmark evidence
 - current scaling boundaries
 - intentionally deferred complexity
-
-Phase 16G subsequently validated repository-facing claims and benchmark reproducibility against this report, the Phase 16 evidence matrix, and the scaling-boundary analysis. Phase 16H closes the phase with final repository validation, successful CI and deployment verification of the validated pre-lock commit, benchmark-fixture cleanup, and the final lock commit.

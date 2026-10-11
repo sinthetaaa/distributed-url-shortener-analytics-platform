@@ -38,12 +38,12 @@ func TestInsertRedirectEventIsIdempotent(t *testing.T) {
 	queries := New(pool)
 
 	eventID := fmt.Sprintf(
-		"phase9h-integration-%d",
+		"redirect-event-integration-%d",
 		time.Now().UnixNano(),
 	)
 
 	shortCode := fmt.Sprintf(
-		"phase9h-%d",
+		"redirect-event-%d",
 		time.Now().UnixNano(),
 	)
 

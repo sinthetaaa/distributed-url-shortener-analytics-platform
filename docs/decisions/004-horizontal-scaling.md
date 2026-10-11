@@ -9,7 +9,7 @@ ShortScale originally ran as a single Go API process.
 
 That architecture was enough to validate PostgreSQL persistence, Redis cache-aside behavior, hot-key protection, TTL jitter, and Redis failure handling, but a single API process is also a single application-level failure domain.
 
-Phase 7 introduced horizontal API replication to answer four separate questions:
+The local horizontal-scaling work introduced API replication to answer four separate questions:
 
 1. Can multiple stateless ShortScale API processes share the same PostgreSQL and Redis services?
 2. Can requests be distributed across those replicas through a load balancer?
@@ -22,7 +22,7 @@ Availability, throughput, and coordination behavior were measured separately.
 
 ShortScale runs multiple stateless Go API replicas behind Nginx.
 
-The local Phase 7 topology is:
+The controlled local topology is:
 
 ```text
                          ┌── API replica 1 ──┐
@@ -230,7 +230,7 @@ This does not imply that horizontal scaling is inherently slower.
 
 All replicas, Nginx, Redis, PostgreSQL, Docker, and the load generator were competing for resources on the same development machine.
 
-The Phase 7 benchmark therefore describes local process/container behavior, not production multi-host scaling efficiency.
+The benchmark therefore describes local process/container behavior, not production multi-host scaling efficiency.
 
 ## Process-Local Singleflight
 
@@ -317,15 +317,15 @@ Revisit this decision if:
 - Nginx becomes a measurable bottleneck
 - per-replica circuit-breaker divergence becomes operationally significant
 
-## Production evolution after Phase 7
+## Production Evolution
 
-This ADR records the Phase 7 **local horizontal-scaling experiment**.
+This ADR records the **local horizontal-scaling experiment**.
 
 Its Nginx topology remains important evidence that the API is stateless, that multiple replicas can share PostgreSQL/Redis, and that process-local coordination such as `singleflight` does not become distributed automatically.
 
 It is not the current production ingress topology.
 
-Phase 15 production uses:
+The deployed production topology uses:
 
 ```text
 Vercel frontend
@@ -335,9 +335,9 @@ same-origin API proxy
 Railway shortscale-api
 ```
 
-The deployed production architecture does not place the Phase 7 Nginx container in front of the Railway API.
+The deployed production architecture does not place the local-experiment Nginx container in front of the Railway API.
 
-Therefore, claims from the Phase 7 three-replica/Nginx experiments must remain scoped to that controlled local environment.
+Therefore, claims from the three-replica/Nginx experiments must remain scoped to that controlled local environment.
 
 Current production documentation does not claim multi-host or multi-region API failover merely because the earlier local topology demonstrated replica-level failure tolerance.
 

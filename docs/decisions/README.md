@@ -11,7 +11,7 @@ ADRs preserve the context and trade-offs at the point a decision was made. Later
 | [001](001-random-base62-short-codes.md) | Random seven-character Base62 short-code generation | Accepted |
 | [002](002-redis-cache-aside.md) | Redis cache-aside for redirect lookups | Accepted |
 | [003](003-hot-key-cache-resilience.md) | Singleflight, TTL jitter, and Redis circuit breaking | Accepted |
-| [004](004-horizontal-scaling.md) | Horizontal API scaling and Nginx load balancing in the Phase 7 local topology | Accepted; production evolution documented |
+| [004](004-horizontal-scaling.md) | Horizontal API scaling and Nginx load balancing in the controlled local topology | Accepted; production evolution documented |
 | [005](005-distributed-rate-limiting.md) | Redis-backed distributed URL-creation rate limiting with atomic Lua | Accepted; authentication-era evolution documented |
 | [006](006-asynchronous-kafka-analytics.md) | Bounded asynchronous redirect analytics through Kafka | Accepted; resilience evolution documented |
 
@@ -33,4 +33,4 @@ Create a new ADR when a new decision has meaningful architectural consequences.
 
 Do not create speculative ADRs only to populate the directory.
 
-When a later phase changes operational topology without invalidating the original engineering lesson, preserve the original ADR and append a clearly labeled evolution section.
+When later engineering work changes operational topology without invalidating the original engineering lesson, preserve the original ADR and append a clearly labeled evolution section.

@@ -4,7 +4,7 @@ Date: 2026-10-07
 
 ## Purpose
 
-Phase 8 added traffic protection to ShortScale and measured the design before and after introducing distributed coordination.
+The rate-limiting work added traffic protection to ShortScale and measured the design before and after introducing distributed coordination.
 
 The experiments answered five questions:
 
@@ -37,7 +37,7 @@ When limited, the API returns HTTP `429` with `Retry-After`.
 
 ## Architecture
 
-The final Phase 8 topology is:
+The final tested topology is:
 
 ```text
                          ┌── API replica 1 ──┐
@@ -520,9 +520,9 @@ same middleware boundary
 one controlled implementation change
 ```
 
-## Overall Phase 8 Findings
+## Overall Findings
 
-Phase 8 demonstrated that:
+The rate-limiting experiments demonstrated that:
 
 1. a token bucket can enforce both burst and sustained-rate behavior
 2. a process-local limiter does not provide a global limit after horizontal scaling

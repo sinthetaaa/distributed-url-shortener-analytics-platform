@@ -1,12 +1,10 @@
 # Production Hardening & CI
 
-Phase 14 turns ShortScale's validated distributed-system implementation into a repeatable, security-scanned, CI-enforced production candidate.
+This document describes how ShortScale's validated distributed-system implementation became a repeatable, security-scanned, CI-enforced production candidate.
 
 The goal was not to add arbitrary process or infrastructure. Each hardening control was either derived from the existing architecture, validated locally, or enforced remotely through GitHub Actions.
 
-## Phase Outcome
-
-Phase 14 is complete.
+## Hardening Outcome
 
 ShortScale now has:
 
@@ -26,7 +24,7 @@ ShortScale now has:
 - CI regression checks protecting the runtime-hardening configuration
 - deliberately tested CI failure behavior
 
-At the end of Phase 14, the main CI workflow contained eight blocking jobs:
+The initial hardened CI workflow contained eight blocking jobs:
 
 1. Lint
 2. Test
@@ -37,7 +35,7 @@ At the end of Phase 14, the main CI workflow contained eight blocking jobs:
 7. Containers
 8. Security
 
-## 14A — Hardening Baseline Audit
+## Hardening Baseline Audit
 
 Before introducing new gates, the existing repository was audited.
 
@@ -94,7 +92,7 @@ non-root 65532:65532
 no shell
 ```
 
-## 14B — Lint & Static Analysis
+## Lint & Static Analysis
 
 ShortScale uses:
 
@@ -129,7 +127,7 @@ aae6e247c5d25dc28d5177578481899dee53cfaf
 chore: add lint and static analysis gate
 ```
 
-## 14C — Core GitHub Actions CI
+## Core GitHub Actions CI
 
 The initial CI pipeline introduced four blocking jobs:
 
@@ -158,7 +156,7 @@ ci: add core Go validation pipeline
 
 The first remote four-job run completed successfully.
 
-## 14D — Generated Code, Database & Container Validation
+## Generated Code, Database & Container Validation
 
 CI was extended with three additional jobs.
 
@@ -203,7 +201,7 @@ ci: validate database and container artifacts
 
 All seven jobs passed remotely.
 
-## 14E — Dependency & Vulnerability Scanning
+## Dependency & Vulnerability Scanning
 
 Security scanning was first run locally before it was made blocking.
 
@@ -271,7 +269,7 @@ ci: update vulnerability scanner
 
 The final eight-job pipeline passed remotely.
 
-## 14F — Runtime Container Hardening
+## Runtime Container Hardening
 
 The custom ShortScale services already used minimal scratch images and non-root users, so the next useful security boundary was runtime isolation.
 
@@ -338,9 +336,9 @@ chore: harden application containers
 
 The corresponding eight-job GitHub Actions run completed successfully.
 
-## 14G — Failure Experiments
+## CI Failure Experiments
 
-Phase 14 ended by testing whether the new gates actually reject bad changes.
+Hardening concluded by testing whether the new gates actually reject bad changes.
 
 These experiments were temporary and the repository was restored after each one.
 
@@ -379,7 +377,7 @@ An untracked file was introduced into the sqlc generated-code directory.
 Git detected:
 
 ```text
-?? internal/database/generated/phase14g_drift.go
+?? internal/database/generated/<temporary-drift-file>.go
 ```
 
 Result:
@@ -439,7 +437,7 @@ Coverage is measured, but a global threshold is not used as a vanity metric.
 
 Resource limits should be based on deployment measurements and workload behavior. They were not invented during local hardening.
 
-These can be finalized during deployment when the target runtime and resource envelope are known.
+Resource limits were deferred until deployment measurements established the target runtime and resource envelope.
 
 ### No blanket vulnerability suppressions
 
@@ -451,13 +449,13 @@ When the original govulncheck version failed in CI, the scanner was upgraded and
 
 ### Dependency update automation
 
-Phase 14 focuses on deterministic validation and blocking vulnerability detection.
+The hardening work focuses on deterministic validation and blocking vulnerability detection.
 
 Automated dependency-update PR generation is not required for correctness of the current build and was not mixed into the security gate. Dependency versions remain explicit and scanner-enforced.
 
 ## Final Production-Readiness State
 
-At the end of Phase 14:
+After the initial hardening work:
 
 ```text
 Source quality
@@ -493,19 +491,12 @@ CI behavior
   ✓ remote successful pipeline
 ```
 
-ShortScale is therefore ready to move from local production hardening into deployment engineering.
+These controls established a production-ready hardening baseline.
 
-## Next Phase
+## CI Evolution
 
-**Phase 15 — Deployment**
 
-Deployment is a required project outcome.
-
-The next phase will select and implement a deployable production topology, configure real environment/secrets handling, provision required infrastructure, deploy ShortScale, validate the public system, and preserve observability and operational behavior in the deployed environment.
-
-## Post-Phase 14 evolution
-
-Phase 14's eight-job pipeline is preserved above as historical evidence for that phase.
+The original eight-job pipeline is preserved above as historical evidence for the initial hardening work.
 
 The current main CI workflow has ten blocking jobs:
 
@@ -536,7 +527,7 @@ Deployment verification is intentionally a separate workflow rather than an elev
 
 After successful main CI, `Deployment Verification` waits for Railway and Vercel deployment statuses for the exact commit and then runs production smoke checks.
 
-Phase 15 subsequently completed deployment to Vercel, Railway, Neon, Upstash, Aiven, and Grafana Cloud.
+ShortScale was subsequently deployed to Vercel, Railway, Neon, Upstash, Aiven, and Grafana Cloud.
 
 See:
 

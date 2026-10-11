@@ -13,7 +13,7 @@ As verified on 10 October 2026, production has the following migrations applied:
 3. `00003_create_redirect_daily_counts.sql`
 4. `00004_create_users_and_url_ownership.sql`
 
-No migration was applied during the Phase 15AS verification because production was already fully up to date.
+No migration was applied during the baseline verification because production was already fully up to date.
 
 ## Principles
 
@@ -210,7 +210,7 @@ Before production execution:
 9. inspect `goose status` again
 10. run production readiness and smoke tests
 
-## Phase 15AS verification record
+## Production Baseline Verification Record
 
 Production migration state was audited on 10 October 2026.
 
@@ -223,7 +223,7 @@ The following migrations were already applied:
 
 `goose status` reported all four migrations as applied.
 
-No migration mutation was necessary during Phase 15AS.
+No migration mutation was necessary during the baseline audit.
 
 After the migration-state audit:
 

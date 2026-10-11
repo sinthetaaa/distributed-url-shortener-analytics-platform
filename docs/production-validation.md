@@ -1,6 +1,6 @@
 # ShortScale Production Validation Record
 
-This document consolidates the production evidence collected during Phase 15 after ShortScale was deployed.
+This document consolidates the production evidence collected after ShortScale was deployed.
 
 It complements the local benchmark and failure-engineering reports. The measurements here describe the deployed portfolio-scale system only and must not be interpreted as a maximum-capacity or high-availability certification.
 
@@ -231,7 +231,7 @@ PostgreSQL was not intentionally broken in production.
 
 It is the authoritative database and a critical dependency for authentication, URL writes, uncached redirects, and analytics persistence.
 
-The stronger PostgreSQL failure experiments remain the controlled Phase 12 local resilience tests.
+The stronger PostgreSQL failure experiments remain the controlled local resilience tests.
 
 Production documentation therefore does not claim that a destructive database-outage experiment was performed against Neon.
 
@@ -250,46 +250,11 @@ Vercel
 
 It then runs production smoke checks.
 
-Initial automated verification:
+The deployment-verification workflow was exercised successfully across multiple main-branch deployments. Each verified run waited for provider deployment statuses for the exact commit and then passed the production smoke contract.
 
-```text
-commit adf4ba4
-CI #47                    SUCCESS
-Deployment Verification  #1 SUCCESS
-production smoke          PASS
-```
+## Final Repository Validation
 
-Phase 15 documentation verification:
-
-```text
-commit 91c1912
-CI #48                    SUCCESS
-Deployment Verification  #2 SUCCESS
-production smoke          PASS
-```
-
-README deployment update verification:
-
-```text
-commit 4db6584
-CI #49                    SUCCESS
-Deployment Verification  #3 SUCCESS
-production smoke          PASS
-```
-
-Phase 15 lock commit:
-
-```text
-commit 29e5c34
-CI #50                    SUCCESS
-Deployment Verification  #4 SUCCESS
-provider statuses         SUCCESS
-production smoke          PASS
-```
-
-## Final Phase 15 repository validation
-
-Before the lock commit, the repository passed:
+The repository validation included:
 
 ```text
 Go tests
@@ -335,7 +300,7 @@ The release smoke suite checks:
 
 These checks are intentionally small and safe enough to run after ordinary deployments.
 
-## Claims Phase 15 does not make
+## Claims Production Validation Does Not Make
 
 Production validation does not establish:
 

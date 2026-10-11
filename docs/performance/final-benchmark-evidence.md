@@ -1,8 +1,8 @@
-# Phase 16 Consolidated Benchmark Evidence
+# Consolidated Benchmark Evidence
 
 ## Purpose
 
-This document is the Phase 16D consolidated evidence matrix for ShortScale.
+This document consolidates the final benchmark evidence for ShortScale.
 
 It brings together:
 
@@ -14,7 +14,7 @@ This is an engineering evidence record, not a production-capacity statement.
 
 ## Runtime and Evidence Boundary
 
-The application runtime behavior measured in Phase 16 is the runtime code at:
+The application runtime behavior measured by the final benchmark is the runtime code at:
 
 ```text
 8102b79edaf7e6a40b1ad5bd0b88a5d7474dbaab
@@ -41,7 +41,7 @@ The final benchmark ran locally through the completed integrated Compose topolog
 
 All capacity-like numbers in this document are therefore local benchmark measurements. They are not production RPS guarantees.
 
-Raw transient k6 and metrics files remain outside Git under the Phase 16 runtime evidence directory. The repository records only the summarized evidence.
+Raw transient k6 and metrics files remain outside Git in the local runtime evidence directory. The repository records only the summarized evidence.
 
 ## Evidence Inventory
 
@@ -85,7 +85,7 @@ The individual R3 samples also varied substantially, reinforcing that high-rate 
 
 ## Historical Redirect Evolution
 
-Earlier phases intentionally measured simpler architectures before adding more components.
+Earlier experiments intentionally measured simpler architectures before adding more components.
 
 ### PostgreSQL-Only Baseline
 
@@ -185,9 +185,9 @@ The lower latency observed in the 200 RPS samples must not be interpreted as pro
 
 ## Historical Analytics API vs FINAL-2
 
-The Phase 10 analytics benchmark deliberately used the same 100,000-event hot-key workload shape, making it the intended historical comparison for FINAL-2.
+The earlier raw-event analytics benchmark deliberately used the same 100,000-event hot-key workload shape, making it the intended historical comparison for FINAL-2.
 
-### Historical Phase 10
+### Historical Raw-Event Analytics Baseline
 
 | Window | Offered Rate | Median | P95 | P99 | HTTP Failures |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -217,9 +217,9 @@ The Phase 10 analytics benchmark deliberately used the same 100,000-event hot-ke
 | 90 days | 50 RPS | 79.6% | 76.9% | 76.0% |
 | 90 days | 200 RPS | 88.6% | 88.3% | 89.5% |
 
-This comparison supports the measured effect of the later pre-aggregation and lifetime-summary work: final analytics latency no longer grows with the requested window in the same way observed when Phase 10 derived results from the raw event history.
+This comparison supports the measured effect of the later pre-aggregation and lifetime-summary work: final analytics latency no longer grows with the requested window in the same way observed when the earlier implementation derived results from raw event history.
 
-The topology and complete application state changed between phases, so the percentages are local architectural comparison evidence rather than a universal speedup guarantee.
+The topology and complete application state changed between benchmark generations, so the percentages are local architectural comparison evidence rather than a universal speedup guarantee.
 
 ## FINAL-3 — Async Analytics Integrity Under Redirect Load
 
@@ -299,7 +299,7 @@ Redirect correctness remained independent of analytics completeness.
 
 ## Historical Async Analytics Evidence
 
-Phase 9 had already established the qualitative behavior of the availability-first design:
+Earlier asynchronous-analytics testing had already established the qualitative behavior of the availability-first design:
 
 - Kafka outage did not break redirect correctness
 - API-side analytics publication was best effort
@@ -308,28 +308,28 @@ Phase 9 had already established the qualitative behavior of the availability-fir
 - moderate 3,000 RPS analytics load showed no observed analytics drops
 - approximately 10,000 RPS caused the bounded producer queue to saturate while redirect HTTP failures remained zero
 
-The Phase 9 10,000 RPS experiment relied on periodic queue-drop logging and observed a periodic drop counter reaching 87,304.
+The earlier 10,000 RPS asynchronous-analytics experiment relied on periodic queue-drop logging and observed a periodic drop counter reaching 87,304.
 
 FINAL-3 strengthens that earlier evidence by using explicit Prometheus before/after snapshots and database deltas. It therefore gives exact accounting for the controlled A1 and A2 runs rather than inferring total loss from periodic logs.
 
 ## Consolidated Evidence Matrix
 
-| Experiment | Architecture / Version | Workload | Measured Result | Evidence Used for Next Phase |
+| Experiment | Architecture / Version | Workload | Measured Result | Engineering Interpretation |
 | --- | --- | --- | --- | --- |
 | PostgreSQL redirect baseline | PostgreSQL-only hot path | 10k RPS, 60 s | 9,999.84 RPS; p99 1.23 ms; 0 HTTP failures | Establish original redirect baseline |
 | Redis redirect comparison | Redis cache-aside + PostgreSQL source of truth | 10k and 20k hot-path profiles | lower P95/P99; hot requests served from Redis; PostgreSQL load reduced | Justify Redis and preserve graceful DB fallback |
-| Phase 9 async analytics | bounded queue + Kafka + consumer | 3k and ~10k redirect load | 3k no observed drops; ~10k queue saturation without HTTP failure | Identify producer queue as an availability-first loss boundary |
-| Phase 10 analytics API | raw-event analytics queries | 100k events; 1-90 day windows | latency rose materially with larger windows; 90d/200 RPS p99 31.78 ms | Motivate pre-aggregation and lifetime summary |
+| Earlier async analytics | bounded queue + Kafka + consumer | 3k and ~10k redirect load | 3k no observed drops; ~10k queue saturation without HTTP failure | Identify producer queue as an availability-first loss boundary |
+| Raw-event analytics API | raw-event analytics queries | 100k events; 1-90 day windows | latency rose materially with larger windows; 90d/200 RPS p99 31.78 ms | Motivate pre-aggregation and lifetime summary |
 | FINAL-1 R1/R2 | completed integrated stack | 500 and 3k RPS | 0 failures, 0 drops, low tail latency | Confirm completed redirect path under representative moderate load |
 | FINAL-1 R3 | completed integrated stack | 10k RPS, 60 s x3 | all executed redirects correct; median sample RPS 9,948.77; 10,513 scheduled iterations dropped | Establish local high-load saturation evidence |
-| FINAL-2 | optimized authenticated analytics | 100k events; historical Phase 10 windows | 90d/200 RPS median 2.228 ms, p99 3.329 ms; zero failures/drops | Confirm read-path optimization under aligned workload |
+| FINAL-2 | optimized authenticated analytics | 100k events; historical raw-event analytics windows | 90d/200 RPS median 2.228 ms, p99 3.329 ms; zero failures/drops | Confirm read-path optimization under aligned workload |
 | FINAL-2 stability | optimized authenticated analytics | 90d, 200 RPS, 30 s | 6,001 requests; p99 3.232 ms; zero failures/drops/restarts | Confirm short-duration stability at defined profile |
 | FINAL-3 A1 | completed async pipeline | 3k RPS, 30 s | 90,001/90,001 events accepted and persisted | Confirm lossless behavior at tested moderate profile |
 | FINAL-3 A2 | completed async pipeline | 10k RPS, 30 s | redirects correct; 83.33% analytics enqueue drops; accepted 49,972 reconciled exactly to DB | Establish current analytics producer saturation boundary |
 
 ## Comparison Rules Preserved
 
-The following distinctions must remain explicit in Phase 16E and Phase 16F:
+The following distinctions must remain explicit in the scaling analysis and final engineering report:
 
 - historical standalone or reduced-stack redirect benchmarks are not one continuous capacity curve with the completed full-stack FINAL-1 benchmark
 - one-replica and three-replica measurements are not interchangeable
@@ -341,10 +341,10 @@ The following distinctions must remain explicit in Phase 16E and Phase 16F:
 - unlimited horizontal scaling is not claimed
 - the analytics A2 result is a measured best-effort degradation boundary, not a correctness failure of the redirect path
 
-## Phase 16D Result
+## Consolidated Result
 
 The final benchmark evidence is now consolidated into one repository document with the historical comparison boundaries preserved.
 
 This document intentionally stops at evidence consolidation.
 
-Detailed bottleneck interpretation and scaling-boundary conclusions belong to Phase 16E.
+Detailed bottleneck interpretation and scaling-boundary conclusions are documented separately in `bottlenecks-and-scaling-boundaries.md`.

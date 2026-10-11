@@ -1,6 +1,6 @@
 # ShortScale Authentication, Sessions & URL Ownership
 
-This document records the authentication and authorization design that was added after ShortScale's original Phase 0 scope.
+This document records the authentication and authorization design that was added after ShortScale's original distributed URL-shortening scope.
 
 The initial architecture deliberately excluded authentication so the distributed URL-shortening core could be built and measured first. The deployed product now supports persistent user accounts, database-backed sessions, authenticated URL ownership, authenticated analytics access, and browser cookie sessions.
 

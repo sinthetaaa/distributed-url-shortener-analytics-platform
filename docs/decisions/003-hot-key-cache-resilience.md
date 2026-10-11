@@ -14,7 +14,7 @@ That design reduced database pressure and improved high-load tail latency, but i
 2. many different cache entries created around the same time could expire around the same time
 3. a Redis outage could cause every request to repeatedly attempt a dependency already known to be unavailable
 
-Phase 6 measured each of these behaviors before deciding how to address them.
+Hot-key and cache-failure experiments measured each of these behaviors before deciding how to address them.
 
 The goal is not to make Redis authoritative or required for correctness.
 
@@ -183,11 +183,11 @@ TTL jitter complements singleflight:
 
 ## 3. Redis Circuit Breaker
 
-Phase 5 already configured Redis operations to fail quickly.
+The initial Redis cache-aside implementation already configured Redis operations to fail quickly.
 
 A Redis outage therefore did not make ShortScale unavailable.
 
-However, Phase 6 measured a different problem: failure amplification.
+Later resilience testing measured a different problem: failure amplification.
 
 ### Before Circuit Breaker
 
@@ -389,11 +389,11 @@ Once ShortScale runs multiple API replicas, singleflight protects each process i
 
 A burst against one missing key could therefore produce approximately one PostgreSQL lookup per API instance.
 
-That behavior should be considered during horizontal-scaling phases.
+That behavior should be considered during horizontal-scaling work.
 
 ## Measured Decision Summary
 
-The Phase 6 resilience mechanisms were adopted because each solved an observed problem:
+The cache-resilience mechanisms were adopted because each solved an observed problem:
 
 ~~~text
 same-key stampede:
@@ -450,7 +450,7 @@ TTL jitter operates when cached values are written so different keys naturally e
 
 ## Follow-Up
 
-Later phases should evaluate:
+Future work should evaluate:
 
 - behavior across multiple API replicas
 - Redis latency degradation rather than complete outage

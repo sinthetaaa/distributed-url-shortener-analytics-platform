@@ -224,7 +224,7 @@ first/last redirect
 → existing (short_code, occurred_at) index
 ```
 
-Phase 13 benchmarks showed approximately a **2,500× reduction** for the benchmarked hot daily query after pre-aggregation and approximately a **100× reduction** for the hot lifetime-summary query after its rewrite.
+Database-scaling benchmarks showed approximately a **2,500× reduction** for the benchmarked hot daily query after pre-aggregation and approximately a **100× reduction** for the hot lifetime-summary query after its rewrite.
 
 ## Database Scaling Decisions
 
@@ -301,43 +301,14 @@ Production hardening includes:
 
 See [Production Hardening & CI](docs/production-hardening.md).
 
-## Project Status
-
-**Phase 15 — Deployment: complete**
-
-Production deployment, managed infrastructure integration, observability, security validation, failure testing, deployment verification, and the production operations runbook are complete.
-
-**Phase 16 — Final Benchmark & Architecture Report: complete**
-
-```text
-16A — Benchmark inventory and evidence audit        COMPLETE
-16B — Final benchmark methodology                   COMPLETE
-16C — Controlled benchmark execution                COMPLETE
-16D — Consolidated benchmark evidence               COMPLETE
-16E — Bottleneck and scaling-boundary analysis      COMPLETE
-16F — Final engineering/architecture report         COMPLETE
-16G — Claims and reproducibility validation         COMPLETE
-16H — Final commit, CI verification, and phase lock COMPLETE
-```
-
-Phase 16 is complete. Final repository validation passed, the Phase 16 benchmark fixture was removed, and the benchmark/report package is locked for portfolio and interview work.
-
-Next:
-
-```text
-Phase 17 — Portfolio, README, demo, and interview presentation
-```
-
-Phase 16 does not convert local benchmark measurements into production-capacity claims. Its purpose is to consolidate measured behavior, architecture evolution, limitations, and reproducible engineering evidence.
-
 ## Documentation
 
 Detailed architecture, engineering decisions, benchmarks, observability, deployment procedures, and failure experiments are maintained under [`docs/`](docs/).
 
 - [Final engineering and architecture report](docs/final-engineering-report.md)
-- [Phase 16 final benchmark methodology](docs/performance/final-benchmark-methodology.md)
-- [Phase 16 consolidated benchmark evidence](docs/performance/final-benchmark-evidence.md)
-- [Phase 16 bottlenecks and scaling boundaries](docs/performance/bottlenecks-and-scaling-boundaries.md)
+- [Final benchmark methodology](docs/performance/final-benchmark-methodology.md)
+- [Consolidated benchmark evidence](docs/performance/final-benchmark-evidence.md)
+- [Bottlenecks and scaling boundaries](docs/performance/bottlenecks-and-scaling-boundaries.md)
 
 - [Production deployment and operations runbook](docs/production-deployment.md)
 - [Production validation record](docs/production-validation.md)

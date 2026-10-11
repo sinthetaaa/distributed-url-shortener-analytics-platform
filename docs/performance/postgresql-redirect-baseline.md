@@ -25,7 +25,7 @@ urls.short_code lookup
 HTTP 302 redirect
 ~~~
 
-Every redirect in this phase performs a PostgreSQL lookup.
+Every redirect in this baseline performs a PostgreSQL lookup.
 
 The goal is not to claim production capacity. The goal is to measure the current single-node PostgreSQL-backed implementation, identify where latency begins to degrade, and create a baseline that later architectural changes can be compared against.
 
@@ -67,7 +67,7 @@ The benchmark targets:
 
 The database row resolves to:
 
-`https://example.com/shortscale-phase3`
+`https://example.com/shortscale-baseline`
 
 k6 does not follow the returned redirect.
 

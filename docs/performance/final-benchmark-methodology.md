@@ -1,8 +1,8 @@
-# Phase 16 Final Benchmark Methodology
+# Final Benchmark Methodology
 
 ## Purpose
 
-Phase 16 produces a final, reproducible engineering benchmark for the completed ShortScale application without turning local measurements into production-capacity claims.
+This methodology defines a final, reproducible engineering benchmark for the completed ShortScale application without turning local measurements into production-capacity claims.
 
 The application behavior under test is the runtime code present at:
 
@@ -10,7 +10,7 @@ The application behavior under test is the runtime code present at:
 8102b79edaf7e6a40b1ad5bd0b88a5d7474dbaab
 ```
 
-Later Phase 16 commits may add benchmark scripts and reports, but no application-runtime behavior should change before the final measurements unless a benchmark exposes a real correctness defect that must be fixed and revalidated.
+Benchmark scripts and reports may evolve independently, but application-runtime behavior must remain unchanged during the final measurement set unless a benchmark exposes a real correctness defect that requires revalidation.
 
 The benchmark answers three questions:
 
@@ -54,7 +54,7 @@ Docker Compose version
 k6 version
 ```
 
-Historical ShortScale local benchmarks were run on an Apple M4 machine with 10 CPU cores and 24 GiB RAM. The final report must record the values observed at Phase 16 execution time rather than assuming they are unchanged.
+Historical ShortScale local benchmarks were run on an Apple M4 machine with 10 CPU cores and 24 GiB RAM. The final report records the values observed during benchmark execution rather than assuming they are unchanged.
 
 ## Final Local Runtime Topology
 
@@ -135,15 +135,15 @@ before taking the next baseline.
 
 ## Repository Benchmark Tooling
 
-The reproducible Phase 16 benchmark surface is tracked in the repository:
+The reproducible final benchmark surface is tracked in the repository:
 
 ```text
 benchmarks/k6/redirect.js
 benchmarks/k6/analytics.js
-benchmarks/phase16/fixture.sh
-benchmarks/phase16/seed-analytics.sql
-benchmarks/phase16/cleanup-fixtures.sql
-benchmarks/phase16/metrics.py
+benchmarks/final/fixture.sh
+benchmarks/final/seed-analytics.sql
+benchmarks/final/cleanup-fixtures.sql
+benchmarks/final/metrics.py
 ```
 
 The redirect workload accepts environment controls including `SHORT_CODE`, `EXPECTED_LOCATION`, `RATE`, `DURATION`, `PRE_ALLOCATED_VUS`, and `MAX_VUS`.
@@ -156,8 +156,8 @@ A non-executing static inspection can be performed with:
 k6 inspect benchmarks/k6/redirect.js
 
 k6 inspect \
-  -e SHORT_CODE=phase16-inspect \
-  -e SESSION_COOKIE=phase16-inspect \
+  -e SHORT_CODE=benchmark-inspect \
+  -e SESSION_COOKIE=benchmark-inspect \
   benchmarks/k6/analytics.js
 ```
 
@@ -217,15 +217,15 @@ shortscale_analytics_consumer_lag_records
 
 Measure the completed current-head redirect path with Redis, asynchronous Kafka analytics, tracing, metrics, and the analytics consumer all enabled.
 
-This is not a PostgreSQL-only or Redis-only comparison. Those controlled before/after experiments already exist in earlier phases.
+This is not a PostgreSQL-only or Redis-only comparison. Those controlled before/after experiments are documented in earlier benchmark reports.
 
 ### Fixture
 
-Use a dedicated Phase 16 short URL.
+Use a dedicated benchmark short URL.
 
 The target must:
 
-- belong to the Phase 16 benchmark user
+- belong to the disposable benchmark user
 - resolve to a fixed `https://example.com/...` destination
 - be warmed into Redis before measurement
 - remain unexpired for the benchmark
@@ -257,7 +257,7 @@ Run three samples for each profile.
 | R2 | 3,000 RPS | 30 s |
 | R3 | 10,000 RPS | 60 s |
 
-The final report should use the median of the three sample values for latency/throughput summaries while retaining the individual samples in the Phase 16 evidence record.
+The final report should use the median of the three sample values for latency/throughput summaries while retaining the individual samples in the benchmark evidence record.
 
 ### Success criteria
 
@@ -280,7 +280,7 @@ Measure the final authenticated analytics endpoint after daily pre-aggregation a
 
 ### Dataset
 
-Use one dedicated Phase 16 analytics URL owned by the benchmark user.
+Use one dedicated analytics URL owned by the benchmark user.
 
 Create a controlled synthetic history containing:
 
@@ -299,21 +299,21 @@ daily rollup SUM(redirects) = 100,000
 daily mismatches = 0
 ```
 
-Using 100,000 events deliberately matches the earlier Phase 10 hot-key workload shape so the final HTTP results can be discussed against that historical benchmark.
+Using 100,000 events deliberately matches the earlier raw-event hot-key workload shape so the final HTTP results can be discussed against that historical benchmark.
 
-Phase 13's separate one-million-row database experiments remain the stronger database-scaling evidence and are not replaced by this final HTTP test.
+The separate one-million-row database experiments remain the stronger database-scaling evidence and are not replaced by this final HTTP test.
 
 ### Authentication
 
 The endpoint is benchmarked through the real authenticated API route.
 
-Use a disposable Phase 16 benchmark account and a real server-side session cookie.
+Use a disposable benchmark account and a real server-side session cookie.
 
 Do not bypass authentication middleware for the benchmark.
 
 ### Profiles
 
-Use the historical Phase 10 request shapes for comparability:
+Use the historical raw-event analytics request shapes for comparability:
 
 | Window | Offered rate | Duration |
 | --- | ---: | ---: |
@@ -346,7 +346,7 @@ The benchmark must not treat a fast HTTP error response as successful performanc
 - API remains live and ready
 - no unexpected application restarts
 
-Latency is compared with the historical Phase 10 API measurements only because the synthetic event volume and endpoint shape are deliberately aligned.
+Latency is compared with the historical raw-event API measurements only because the synthetic event volume and endpoint shape are deliberately aligned.
 
 ## FINAL-3 — Async Analytics Integrity Under Redirect Load
 
@@ -358,7 +358,7 @@ This test is about accounting and degradation semantics, not only HTTP latency.
 
 ### Fixture
 
-Use a separate Phase 16 URL with no synthetic redirect history.
+Use a separate benchmark URL with no synthetic redirect history.
 
 Record baseline values for:
 
@@ -442,7 +442,7 @@ Use direct comparisons only when the workload and topology are sufficiently alig
 
 Valid examples:
 
-- Phase 10 100k-event analytics endpoint vs FINAL-2 100k-event analytics endpoint
+- historical 100k-event raw analytics endpoint vs FINAL-2 100k-event analytics endpoint
 - current-head sample 1 vs sample 2 vs sample 3 under the same FINAL-1 profile
 
 Use caution when comparing:
@@ -464,7 +464,7 @@ https://sscale.vercel.app
 
 or the public Railway API.
 
-Production evidence remains limited to the controlled smoke, observability, resource, security, and failure/recovery validation already completed in Phase 15.
+Production evidence remains limited to the controlled smoke, observability, resource, security, and failure/recovery validation performed against the deployed system.
 
 The final benchmark is a local engineering benchmark.
 
@@ -476,7 +476,7 @@ The repository should ultimately commit:
 
 - benchmark scripts
 - fixture/setup scripts
-- the summarized Phase 16 evidence
+- the summarized final benchmark evidence
 - the final engineering report
 
 Do not commit:
@@ -486,7 +486,7 @@ Do not commit:
 - large transient k6 output files
 - disposable synthetic database dumps
 
-## Phase 16 Claim Rules
+## Claim Rules
 
 The final report may claim measured facts such as:
 
@@ -505,16 +505,3 @@ The final report must **not** claim:
 - multi-region failover
 - absence of all memory leaks
 - universal cloud-provider performance
-
-## Phase 16 Sequence
-
-```text
-16A — benchmark inventory and evidence audit
-16B — final benchmark methodology
-16C — benchmark scripts, fixtures, and execution
-16D — consolidated evidence matrix
-16E — bottleneck and scaling-boundary analysis
-16F — final engineering/architecture report
-16G — claims and reproducibility validation
-16H — commit, push, CI verification, and phase lock
-```

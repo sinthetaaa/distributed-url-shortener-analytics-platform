@@ -1,8 +1,8 @@
-# Phase 16 Bottlenecks and Scaling Boundaries
+# Bottlenecks and Scaling Boundaries
 
 ## Purpose
 
-This document is the Phase 16E interpretation of the consolidated benchmark evidence in `final-benchmark-evidence.md`.
+This document interprets the consolidated benchmark evidence in `final-benchmark-evidence.md`.
 
 It identifies measured bottlenecks, separates proven component boundaries from whole-system saturation, and records the scaling limits that should shape future architecture work.
 
@@ -80,7 +80,7 @@ Future work on this boundary should begin with component-level profiling on inde
 
 ## Boundary 2 — API-Side Async Analytics Producer
 
-This is the clearest application-level saturation boundary measured in Phase 16.
+This is the clearest application-level saturation boundary measured in the final benchmark.
 
 The current design is availability-first:
 
@@ -183,7 +183,7 @@ They remain future boundaries if accepted-event throughput grows enough to creat
 
 ## Boundary 4 — Analytics Read Path
 
-Historical Phase 10 analytics derived bounded daily data and lifetime summaries from raw redirect history.
+The earlier analytics implementation derived bounded daily data and lifetime summaries from raw redirect history.
 
 With 100,000 events, latency grew materially with larger windows:
 
@@ -395,7 +395,7 @@ This keeps ShortScale measurement-driven rather than complexity-driven.
 
 ## Claims That Remain Out of Scope
 
-Phase 16 evidence does not establish:
+The final benchmark evidence does not establish:
 
 - maximum production RPS
 - a precise 3k-to-10k analytics producer capacity threshold
@@ -407,7 +407,7 @@ Phase 16 evidence does not establish:
 - cloud-provider performance equivalence
 - absence of all long-duration memory or resource leaks
 
-## Phase 16E Conclusions
+## Conclusions
 
 The completed ShortScale architecture now has distinct, evidence-backed boundaries.
 

@@ -125,7 +125,7 @@ func TestKafkaRedirectEventProducerIntegration(t *testing.T) {
 	}
 
 	event, err := NewRedirectEvent(
-		fmt.Sprintf("phase9c-%d", time.Now().UnixNano()),
+		fmt.Sprintf("kafka-test-%d", time.Now().UnixNano()),
 	)
 	if err != nil {
 		t.Fatalf("create redirect event: %v", err)
@@ -135,7 +135,7 @@ func TestKafkaRedirectEventProducerIntegration(t *testing.T) {
 		KafkaProducerConfig{
 			Brokers:  []string{broker},
 			Topic:    RedirectEventsTopic,
-			ClientID: "shortscale-phase9c-test",
+			ClientID: "shortscale-kafka-test",
 		},
 	)
 	if err != nil {
