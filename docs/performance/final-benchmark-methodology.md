@@ -133,6 +133,40 @@ shortscale_analytics_consumer_lag_records = 0
 
 before taking the next baseline.
 
+## Repository Benchmark Tooling
+
+The reproducible Phase 16 benchmark surface is tracked in the repository:
+
+```text
+benchmarks/k6/redirect.js
+benchmarks/k6/analytics.js
+benchmarks/phase16/fixture.sh
+benchmarks/phase16/seed-analytics.sql
+benchmarks/phase16/cleanup-fixtures.sql
+benchmarks/phase16/metrics.py
+```
+
+The redirect workload accepts environment controls including `SHORT_CODE`, `EXPECTED_LOCATION`, `RATE`, `DURATION`, `PRE_ALLOCATED_VUS`, and `MAX_VUS`.
+
+The authenticated analytics workload requires both `SHORT_CODE` and `SESSION_COOKIE`. It also accepts `DAYS`, `RATE`, `DURATION`, `PRE_ALLOCATED_VUS`, and `MAX_VUS`.
+
+A non-executing static inspection can be performed with:
+
+```text
+k6 inspect benchmarks/k6/redirect.js
+
+k6 inspect \
+  -e SHORT_CODE=phase16-inspect \
+  -e SESSION_COOKIE=phase16-inspect \
+  benchmarks/k6/analytics.js
+```
+
+`fixture.sh` owns disposable fixture creation/cleanup. Session cookies and other runtime secrets must remain outside Git.
+
+`metrics.py` records and reconciles API enqueue/publish counters, consumer processing/persistence counters, queue depth, and consumer lag for the asynchronous analytics profiles.
+
+Raw k6 outputs and disposable fixture state remain transient evidence outside Git; the repository retains the scripts, methodology, and summarized results required to understand and reproduce the benchmark design.
+
 ## Metrics to Record
 
 ### k6 request metrics

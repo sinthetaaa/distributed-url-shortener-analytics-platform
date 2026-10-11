@@ -6,6 +6,8 @@ Date: 2026-10-07
 
 Phase 10 exposed persisted redirect analytics through a bounded HTTP API and validated the complete asynchronous analytics pipeline.
 
+> **Historical status:** This document preserves the Phase 10 architecture and measurements. Statements below that describe pre-aggregation or lifetime-summary optimization as future work were accurate at Phase 10. Later phases implemented those optimizations, and Phase 16 re-benchmarked the optimized analytics path. See `final-benchmark-evidence.md`, `bottlenecks-and-scaling-boundaries.md`, and `../final-engineering-report.md` for the final measured state.
+
 The API provides:
 
 ```text

@@ -305,42 +305,37 @@ See [Production Hardening & CI](docs/production-hardening.md).
 
 **Phase 15 — Deployment: complete**
 
-Completed deployment milestones include:
+Production deployment, managed infrastructure integration, observability, security validation, failure testing, deployment verification, and the production operations runbook are complete.
 
-- production frontend deployment on Vercel
-- production API deployment on Railway
-- production analytics consumer deployment on Railway
-- production Alloy deployment on Railway
-- managed Neon PostgreSQL, Upstash Redis, and Aiven Kafka integration
-- Grafana Cloud production metrics and distributed tracing
-- production resource measurement
-- production security audit
-- consumer outage and Kafka backlog recovery testing
-- telemetry failure-isolation testing
-- Redis outage and fallback testing
-- CD/deployment verification automation
-- production deployment and operations runbook
-
-Final Phase 15 milestones:
+**Phase 16 — Final Benchmark & Architecture Report: final validation**
 
 ```text
-15BB — README product update              COMPLETE
-15BC — Final validation                   COMPLETE
-15BD — Final commit & Phase 15 lock       COMPLETE
+16A — Benchmark inventory and evidence audit        COMPLETE
+16B — Final benchmark methodology                   COMPLETE
+16C — Controlled benchmark execution                COMPLETE
+16D — Consolidated benchmark evidence               COMPLETE
+16E — Bottleneck and scaling-boundary analysis      COMPLETE
+16F — Final engineering/architecture report         COMPLETE
+16G — Claims and reproducibility validation         CURRENT
+16H — Final commit, CI verification, and phase lock PENDING
 ```
 
 Next:
 
 ```text
-Phase 16 — Benchmark/report
-Phase 17 — Portfolio/README/interview presentation
+Phase 17 — Portfolio, README, demo, and interview presentation
 ```
 
-The final portfolio-oriented presentation package remains a later phase; this README update reflects the currently deployed product and production architecture.
+Phase 16 does not convert local benchmark measurements into production-capacity claims. Its purpose is to consolidate measured behavior, architecture evolution, limitations, and reproducible engineering evidence.
 
 ## Documentation
 
 Detailed architecture, engineering decisions, benchmarks, observability, deployment procedures, and failure experiments are maintained under [`docs/`](docs/).
+
+- [Final engineering and architecture report](docs/final-engineering-report.md)
+- [Phase 16 final benchmark methodology](docs/performance/final-benchmark-methodology.md)
+- [Phase 16 consolidated benchmark evidence](docs/performance/final-benchmark-evidence.md)
+- [Phase 16 bottlenecks and scaling boundaries](docs/performance/bottlenecks-and-scaling-boundaries.md)
 
 - [Production deployment and operations runbook](docs/production-deployment.md)
 - [Production validation record](docs/production-validation.md)
